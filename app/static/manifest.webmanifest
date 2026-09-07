@@ -1,0 +1,16 @@
+{
+  "name": "Table & Tale \u2014 Family Cookbook",
+  "short_name": "Table & Tale",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4efe6",
+  "theme_color": "#f4efe6",
+  "icons": [
+    {
+      "src": "/brand-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

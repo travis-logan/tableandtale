@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Runtime configuration / secrets
+config.json
+.env
+.env.*
+!config.example.json
+
+# Database and SQLite runtime files
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+data/*-wal
+data/*-shm
+
+# User-generated/private runtime data
+uploads/
+backups/
+logs/
+
+# Installer/runtime artifacts
+*.log
+*.tmp
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Build/package outputs
+dist/
+build/
+*.zip

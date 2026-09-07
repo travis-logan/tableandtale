@@ -1,0 +1,6 @@
+{
+  "secret_key": "CHANGE_ME_USE_A_RANDOM_64_HEX_CHARACTER_SECRET",
+  "port": 3000,
+  "site_name": "Table & Tale",
+  "allow_lan": true
+}

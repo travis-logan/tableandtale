@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4efe6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Table & Tale</title>
+<link rel="manifest" href="/manifest.webmanifest?v=3.2.2">
+<link rel="icon" href="/brand-mark.svg">
+<link rel="apple-touch-icon" href="/brand-mark.svg">
+<link rel="stylesheet" href="/styles.css?v=3.2.2">
+</head>
+<body>
+<div id="toast" class="toast"></div>
+
+<section id="authScreen" class="auth-screen">
+  <div class="auth-art"><img src="/brand-mark.svg" alt=""><p>Recipes worth remembering.</p></div>
+  <div class="auth-card">
+    <p class="eyebrow">A LIVING FAMILY COOKBOOK</p>
+    <h1 data-brand-name>Table & Tale</h1>
+    <p class="lead" data-brand-tagline>Recipes worth remembering.</p>
+    <form id="setupForm" class="auth-form hidden">
+      <h2>Create the family admin</h2>
+      <input name="display_name" placeholder="Your name" required>
+      <input name="username" autocomplete="username" placeholder="Username" required>
+      <input name="email" type="email" placeholder="Email (optional)">
+      <input name="password" type="password" autocomplete="new-password" placeholder="Password, 10+ characters" minlength="10" required>
+      <button class="primary widebtn">Create Cookbook</button>
+    </form>
+    <form id="loginForm" class="auth-form hidden">
+      <input name="username" autocomplete="username" placeholder="Username" required>
+      <input name="password" type="password" autocomplete="current-password" placeholder="Password" required>
+      <button class="primary widebtn">Sign In</button>
+      <button type="button" class="linkbtn" id="showRegister">Have a family invite?</button>
+    </form>
+    <form id="registerForm" class="auth-form hidden">
+      <h2>Join the family cookbook</h2>
+      <input name="invite_code" placeholder="Invite code" required>
+      <input name="display_name" placeholder="Your name" required>
+      <input name="username" autocomplete="username" placeholder="Choose a username" required>
+      <input name="email" type="email" placeholder="Email (optional)">
+      <input name="password" type="password" autocomplete="new-password" placeholder="Password, 10+ characters" minlength="10" required>
+      <button class="primary widebtn">Create Account</button>
+      <button type="button" class="linkbtn" id="showLogin">Back to sign in</button>
+    </form>
+    <div class="app-version auth-version">Table & Tale <span data-app-version>v3.2.2</span></div>
+  </div>
+</section>
+
+<div id="shell" class="hidden">
+<header class="topbar">
+  <button class="brand" data-nav="home"><img src="/brand-mark.svg" class="brandmark" alt=""><span><strong data-brand-name>Table & Tale</strong><small data-brand-tagline>Recipes worth remembering.</small></span></button>
+  <div class="top-actions">
+    <button class="icon-action" id="themeQuick" title="Change theme">◐</button>
+    <button class="icon-action desktop-only" data-nav="shopping" title="Shopping lists">🛒 <b id="cartCount">0</b></button>
+    <button class="primary" data-nav="add">＋ Add Recipe</button>
+    <button class="avatar avatar-button" id="avatarBtn">T</button>
+  </div>
+</header>
+
+<main>
+<section id="homeView" class="view active">
+  <div class="hero">
+    <div><p class="eyebrow">THE FAMILY TABLE</p><h1>What are we making?</h1><p>Old recipe cards, new favorites, and the stories behind both.</p></div>
+    <div class="hero-count"><strong id="recipeCount">0</strong><span>family recipes</span></div>
+  </div>
+  <div class="search-row">
+    <div class="searchbox"><span>⌕</span><input id="searchInput" type="search" placeholder="Search recipes, ingredients, equipment, people…"></div>
+    <button class="secondary" id="pantryBtn">🥕 What can I make?</button>
+  </div>
+  <div class="category-strip" id="categoryStrip"></div>
+  <div class="filters">
+    <select id="ownerFilter"><option value="">Everyone's recipes</option></select>
+    <input id="includeIngredient" placeholder="Must include…">
+    <input id="excludeIngredient" placeholder="Exclude…">
+    <select id="sortFilter"><option value="az">A → Z</option><option value="rating">Highest rated</option><option value="newest">Newest</option><option value="made">Most cooked</option></select>
+    <button class="ghost" id="clearFilters">Clear</button>
+  </div>
+  <div class="section-head"><div><h2 id="recipesHeading">All Recipes</h2><span id="resultMeta"></span></div></div>
+  <div id="recipeGrid" class="recipe-grid"></div>
+</section>
+
+<section id="addView" class="view">
+  <div class="page-head"><p class="eyebrow">ADD TO THE STORY</p><h1 id="recipeFormTitle">Add a recipe</h1><p id="publishHint">Preserve the recipe and make it easy for the next person to cook.</p></div>
+  <form id="recipeForm" class="panel recipe-form">
+    <section class="import-center">
+      <div class="section-head"><div><h2>Import a recipe</h2><span>Start from wherever the recipe already lives.</span></div><span id="importBadge" class="pill hidden"></span></div>
+      <div class="import-grid">
+        <div class="import-card"><strong>🌐 Recipe website</strong><div class="inline"><input id="websiteUrl" type="url" placeholder="https://example.com/recipe"><button type="button" class="secondary" data-import="website">Import</button></div></div>
+        <div class="import-card"><strong>✦ ChatGPT share link</strong><div class="inline"><input id="chatgptUrl" type="url" placeholder="https://chatgpt.com/share/…"><button type="button" class="secondary" data-import="chatgpt">Import</button></div></div>
+        <div class="import-card"><strong>📋 Paste recipe text</strong><textarea id="rawRecipeText" rows="3" placeholder="Paste the recipe here…"></textarea><button type="button" class="secondary" data-import="text">Parse Text</button></div>
+        <div class="import-card"><strong>📷 Recipe card or cookbook page</strong><input id="photoImport" type="file" accept="image/*" capture="environment" multiple><button type="button" class="secondary" data-import="photo">Read Photo</button><small>Front and back can be uploaded together. The originals are preserved.</small></div>
+      </div>
+      <div id="importStatus" class="muted"></div>
+      <div id="importCandidates" class="candidate-grid hidden"></div>
+    </section>
+
+    <section class="form-section">
+      <div class="section-head"><div><h2>Recipe basics</h2><span>Servings are the anchor for one-click scaling.</span></div></div>
+      <div class="form-grid">
+        <label class="span2">Recipe name<input name="title" required></label>
+        <label>Category<select name="category" id="categorySelect"></select></label>
+        <label>Subcategory<input name="subcategory" placeholder="Pasta, soup, cookies…"></label>
+        <label>Cuisine<input name="cuisine" placeholder="Italian, Thai, Southern…"></label>
+        <label>Equipment<input name="equipment" placeholder="Skillet, Instant Pot…"></label>
+        <label>Serves<input name="servings_base" type="number" step="0.25" min="0" placeholder="4"></label>
+        <label>Serving label<input name="servings_label" placeholder="4 people / 12 cookies"></label>
+        <label>Prep time<input name="prep_text" placeholder="15 min"></label>
+        <label>Cook time<input name="cook_text" placeholder="30 min"></label>
+        <label>Total time<input name="total_text" placeholder="45 min"></label>
+        <label>Visibility<select name="visibility"><option value="family">Family cookbook</option><option value="private">Private to me</option></select></label>
+        <label class="span2">Description<textarea name="description" rows="2" placeholder="A quick description of the dish."></textarea></label>
+        <label class="span2">Finished-dish photo<input name="cover_image" type="file" accept="image/png,image/jpeg,image/webp"></label>
+      </div>
+    </section>
+
+    <section class="form-section story-panel">
+      <div class="section-head"><div><h2>Family history</h2><span>Who made it first matters as much as who uploaded it.</span></div></div>
+      <div class="form-grid">
+        <label>Original recipe by<input name="original_author" placeholder="Grandma Logan"></label>
+        <label>Approx. year<input name="approx_year" placeholder="1974 / 1990s"></label>
+        <label>Family branch<input name="family_branch" placeholder="Logan family"></label>
+        <label>Occasion<input name="occasion" placeholder="Christmas Eve, Sunday dinner…"></label>
+        <label class="span2">Story & history<textarea name="family_story" rows="4" placeholder="Where did this recipe come from? What do you remember about it?"></textarea></label>
+        <label class="span2">Variation of<select name="parent_recipe_id" id="parentRecipeSelect"><option value="">Not a variation</option></select></label>
+      </div>
+    </section>
+
+    <section class="form-section ingredient-builder">
+      <div class="section-head"><div><h2>Ingredients</h2><span>Use numeric quantities whenever possible so scaling and shopping lists work correctly.</span></div><button type="button" class="ghost" id="addIngredient">＋ Ingredient</button></div>
+      <div class="ingredient-head"><span>Qty</span><span>Unit</span><span>Ingredient</span><span>Prep</span><span>Aisle</span><span></span></div>
+      <div id="ingredientRows"></div>
+    </section>
+
+    <section class="form-section step-builder">
+      <div class="section-head"><div><h2>Step-by-step directions</h2><span>Link the ingredients used in each step so scaled amounts stay correct inside the directions.</span></div><button type="button" class="ghost" id="addStep">＋ Step</button></div>
+      <div id="stepRows"></div>
+    </section>
+
+    <section class="form-section">
+      <div class="form-grid">
+        <label class="span2">General notes<textarea name="notes" rows="3" placeholder="Substitutions, make-ahead notes, etc."></textarea></label>
+        <label class="span2">Tags<input name="tags" placeholder="spicy weeknight comfort-food cast-iron"></label>
+      </div>
+    </section>
+    <div class="form-actions"><button type="button" class="ghost" id="cancelRecipe">Cancel</button><button class="primary">Save Recipe</button></div>
+  </form>
+</section>
+
+<section id="shoppingView" class="view">
+  <div class="page-head split"><div><p class="eyebrow">SHOPPING</p><h1>Grocery lists</h1><p>Scale recipes, combine meals, and carry one shared list to the store.</p></div><button class="secondary" id="newListBtn">＋ New List</button></div>
+  <div class="shopping-layout"><aside id="shoppingLists" class="list-sidebar"></aside><section class="panel shopping-panel"><div id="shoppingEmpty" class="empty"><div>🛒</div><h3>Select a shopping list</h3></div><div id="shoppingContent" class="hidden"><div class="section-head"><div><h2 id="shoppingTitle"></h2><span id="shoppingMeta"></span></div><button class="ghost" id="clearChecked">Clear checked</button></div><form id="manualItemForm" class="inline"><input name="display_name" placeholder="Add an item…" required><button class="secondary">Add</button></form><div id="shoppingItems"></div></div></section></div>
+</section>
+
+<section id="familyView" class="view"><div class="page-head"><p class="eyebrow">THE PEOPLE BEHIND THE RECIPES</p><h1>Family & friends</h1><p>Every recipe, comment, and memory stays connected to the person who shared it.</p></div><div id="familyGrid" class="family-grid"></div></section>
+<section id="activityView" class="view"><div class="page-head"><p class="eyebrow">RECENTLY AT THE TABLE</p><h1>Cookbook activity</h1></div><div id="activityFeed" class="activity-feed"></div></section>
+
+<section id="adminView" class="view">
+  <div class="page-head"><p class="eyebrow">ADMIN</p><h1>Manage the cookbook</h1></div>
+  <div class="admin-grid">
+    <section class="panel"><h2>Branding</h2><form id="brandingForm" class="stack"><label>Cookbook name<input name="site_name"></label><label>Tagline<input name="tagline"></label><label>Accent color<input name="brand_accent" type="color"></label><button class="primary">Save Branding</button></form><p class="muted">The current “Table & Tale” identity is a working brand and can be changed here without reinstalling.</p></section>
+    <section class="panel"><h2>Public Sharing</h2><p id="publicUrlStatus" class="muted">Checking public access…</p><form id="sharingForm" class="stack"><label>Public cookbook URL<input name="public_url" type="url" placeholder="https://your-cookbook.your-tailnet.ts.net"></label><button class="secondary">Save Public URL</button></form><p class="muted">Invite links use this address even when you create them from localhost. Leave it blank to let Table & Tale try to detect a Tailscale Funnel automatically.</p></section>
+    <section class="panel"><h2>Invite someone</h2><form id="inviteForm" class="stack"><label>Name/label<input name="label" placeholder="Mom, David, Katie…"></label><label>Access<select name="role"><option value="member">Member — publishes directly</option><option value="guest">Guest — requires approval</option></select></label><label>Expires in<select name="days"><option value="7">7 days</option><option value="14" selected>14 days</option><option value="30">30 days</option></select></label><button class="primary">Create Invite</button></form><div id="inviteResult" class="invite-result hidden"></div></section>
+    <section class="panel"><div class="section-head"><div><h2>Pending recipes</h2><span>Guest submissions waiting for review.</span></div></div><div id="pendingList"></div></section>
+    <section class="panel"><div class="section-head"><div><h2>Members</h2><span>Manage family access.</span></div></div><div id="adminMembers"></div></section>
+  </div>
+</section>
+
+<section id="profileView" class="view"><div id="profileContent"></div><section class="panel profile-settings" id="profileSettings"><h2>My settings</h2><form id="avatarForm" class="stack"><label>Profile photo<input name="image" type="file" accept="image/*" required></label><button class="secondary">Upload Photo</button></form><form id="themeForm" class="stack"><label>Appearance<select name="theme_pref"><option value="system">Follow device</option><option value="light">Light</option><option value="dark">Dark</option></select></label><button class="ghost">Save Appearance</button></form><form id="passwordForm" class="stack"><label>Current password<input name="current_password" type="password" required></label><label>New password<input name="new_password" type="password" minlength="10" required></label><button class="ghost">Change Password</button></form></section></section>
+</main>
+
+<nav class="bottom-nav"><button data-nav="home" class="active"><span>⌂</span>Home</button><button data-nav="shopping"><span>🛒</span>Lists</button><button data-nav="add"><span>＋</span>Add</button><button data-nav="family"><span>♧</span>Family</button><button data-nav="activity"><span>◴</span>Activity</button></nav>
+</div>
+
+<dialog id="recipeDialog" class="big-dialog"><div id="recipeDetail"></div></dialog>
+<dialog id="cookDialog" class="cook-dialog"><div id="cookMode"></div></dialog>
+<dialog id="pantryDialog" class="medium-dialog"><div class="dialog-head"><div><p class="eyebrow">PANTRY MATCH</p><h2>What can I make?</h2></div><button class="circle" data-close="pantryDialog">×</button></div><div class="dialog-body"><p>Enter ingredients you already have. Recipes are ranked by how much you can cover.</p><form id="pantryForm" class="inline"><input id="pantryInput" placeholder="chicken, rice, garlic, cream cheese"><button class="primary">Find Recipes</button></form><div id="pantryResults"></div></div></dialog>
+<dialog id="accountDialog" class="small-dialog"><div class="dialog-body account-menu"><div id="accountAvatar" class="avatar avatar-xl"></div><h3 id="accountName"></h3><p id="accountRole"></p><button class="ghost widebtn" data-nav="profile">My Profile</button><button class="ghost widebtn hidden" id="adminNav" data-nav="admin">Admin</button><button class="danger widebtn" id="logoutBtn">Sign Out</button><div class="app-version account-version">Table & Tale <span data-app-version>v3.2.2</span></div></div></dialog>
+<dialog id="addToListDialog" class="small-dialog"><div class="dialog-body"><h3 id="listDialogTitle">Add ingredients to list</h3><select id="targetList"></select><label>Scale to servings<input id="targetServings" type="number" step="0.25" min="0.25"></label><label class="check"><input id="skipOptional" type="checkbox"> Skip optional ingredients</label><button class="primary widebtn" id="confirmAddToList">Add to Shopping List</button></div></dialog>
+<script src="/app.js?v=3.2.2"></script>
+</body>
+</html>
