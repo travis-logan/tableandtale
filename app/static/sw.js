@@ -1,4 +1,4 @@
-const APP_VERSION="3.2.2";
+const APP_VERSION="3.3.0-beta.4";
 const CACHE_NAME=`table-tale-${APP_VERSION}`;
 const CORE=[
   `/styles.css?v=${APP_VERSION}`,

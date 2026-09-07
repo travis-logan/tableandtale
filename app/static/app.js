@@ -1,4 +1,4 @@
-const S={user:null,csrf:null,branding:null,appVersion:null,recipes:[],users:[],lists:[],activeList:null,currentRecipe:null,editId:null,importToken:null,category:'',detailScale:1,listItems:[],cook:null,profileUid:null};
+const S={user:null,csrf:null,branding:null,appVersion:null,recipes:[],users:[],lists:[],activeList:null,currentRecipe:null,editId:null,importToken:null,category:'',detailScale:1,listItems:[],cook:null,profileUid:null,addMethod:null,addStage:'method',existingStoryMedia:[]};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const CATEGORIES=['Main Dishes','Breakfast & Brunch','Sides','Appetizers & Snacks','Desserts','Drinks','Breads & Baking','Sauces & Condiments'];
 const ICONS={'Main Dishes':'🍲','Breakfast & Brunch':'🍳','Sides':'🥕','Appetizers & Snacks':'🥨','Desserts':'🍰','Drinks':'☕','Breads & Baking':'🥖','Sauces & Condiments':'🥣'};
@@ -6,7 +6,30 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
 const formObj=f=>Object.fromEntries(new FormData(f).entries());
 const jsonOpts=(method,body)=>({method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800)}
-async function api(url,opts={}){opts.headers={...(opts.headers||{})};if(['POST','PUT','PATCH','DELETE'].includes((opts.method||'GET').toUpperCase()))opts.headers['X-CSRF-Token']=S.csrf||'';const r=await fetch(url,opts);const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Request failed');return d}
+async function api(url,opts={}){
+  opts.headers={...(opts.headers||{})};
+  if(['POST','PUT','PATCH','DELETE'].includes((opts.method||'GET').toUpperCase()))opts.headers['X-CSRF-Token']=S.csrf||'';
+  let r;
+  try{
+    r=await fetch(url,{cache:'no-store',...opts});
+  }catch(err){
+    const message=String(err?.message||err||'Network request failed');
+    throw new Error(message==='Load failed'
+      ? 'The browser lost the connection while importing. Table & Tale did not receive a usable response. Retry once; if it happens again, the server log will now contain the real import error.'
+      : message);
+  }
+  const raw=await r.text();
+  let d={};
+  if(raw){
+    try{d=JSON.parse(raw)}
+    catch{
+      if(!r.ok)throw new Error(`Server returned ${r.status} ${r.statusText} instead of JSON.`);
+      throw new Error('Table & Tale received an unreadable response from the server.');
+    }
+  }
+  if(!r.ok)throw new Error(d.error||`Request failed (${r.status})`);
+  return d
+}
 function initials(n=''){return n.split(/\s+/).filter(Boolean).map(x=>x[0]).join('').slice(0,2).toUpperCase()||'U'}
 function avatarHtml(path,name,cls='avatar'){return `<span class="${cls}">${path?`<img src="/uploads/${esc(path)}" alt="">`:esc(initials(name))}</span>`}
 function applyBranding(b){S.branding=b||S.branding||{site_name:'Table & Tale',tagline:'Recipes worth remembering.',brand_accent:'#b85f3f'};$$('[data-brand-name]').forEach(x=>x.textContent=S.branding.site_name);$$('[data-brand-tagline]').forEach(x=>x.textContent=S.branding.tagline);document.title=S.branding.site_name;document.documentElement.style.setProperty('--accent',S.branding.brand_accent||'#b85f3f')}
@@ -18,7 +41,7 @@ async function authSubmit(form,url){try{await api(url,jsonOpts('POST',formObj(fo
 $('#setupForm').onsubmit=e=>{e.preventDefault();authSubmit(e.currentTarget,'/api/setup')};$('#loginForm').onsubmit=e=>{e.preventDefault();authSubmit(e.currentTarget,'/api/login')};$('#registerForm').onsubmit=e=>{e.preventDefault();authSubmit(e.currentTarget,'/api/register')};$('#showRegister').onclick=()=>{$('#loginForm').classList.add('hidden');$('#registerForm').classList.remove('hidden')};$('#showLogin').onclick=()=>{$('#registerForm').classList.add('hidden');$('#loginForm').classList.remove('hidden')};
 function showShell(){$('#authScreen').classList.add('hidden');$('#shell').classList.remove('hidden');$('#avatarBtn').innerHTML=S.user.avatar_path?`<img src="/uploads/${esc(S.user.avatar_path)}">`:esc(initials(S.user.display_name));$('#accountAvatar').innerHTML=S.user.avatar_path?`<img src="/uploads/${esc(S.user.avatar_path)}">`:esc(initials(S.user.display_name));$('#accountName').textContent=S.user.display_name;$('#accountRole').textContent=S.user.role;$('#adminNav').classList.toggle('hidden',S.user.role!=='admin');$('#publishHint').textContent=S.user.role==='guest'?'Your recipe will wait for family-admin approval.':'Preserve the recipe and make it easy for the next person to cook.';setupCategoryUI();Promise.all([loadUsers(),loadRecipes(),loadLists(),loadActivity()]).catch(e=>toast(e.message))}
 $('#logoutBtn').onclick=async()=>{await api('/api/logout',jsonOpts('POST',{}));location.reload()};$('#avatarBtn').onclick=()=>$('#accountDialog').showModal();$('#themeQuick').onclick=async()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';try{const r=await api('/api/me/preferences',jsonOpts('PATCH',{theme_pref:next}));S.user=r.user;applyTheme(next)}catch(e){toast(e.message)}};
-function nav(name){if(name==='add'&&!S.editId)resetRecipeForm();$$('.view').forEach(v=>v.classList.remove('active'));$$('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.nav===name));const map={home:'homeView',add:'addView',shopping:'shoppingView',family:'familyView',activity:'activityView',admin:'adminView',profile:'profileView'};$('#'+(map[name]||'homeView')).classList.add('active');if($('#accountDialog').open)$('#accountDialog').close();window.scrollTo({top:0,behavior:'smooth'});if(name==='shopping')loadLists();if(name==='family')renderFamily();if(name==='activity')loadActivity();if(name==='admin')loadAdmin();if(name==='profile')loadProfile(S.profileUid||S.user.id)}
+function nav(name){if(name==='add'&&!S.editId)resetRecipeForm();$$('.view').forEach(v=>v.classList.remove('active'));$$('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.nav===name));const map={home:'homeView',add:'addView',shopping:'shoppingView',family:'familyView',activity:'activityView',admin:'adminView',profile:'profileView'};$('#'+(map[name]||'homeView')).classList.add('active');if($('#accountDialog').open)$('#accountDialog').close();window.scrollTo({top:0,behavior:'smooth'});if(name==='shopping')loadLists();if(name==='family')renderFamily();if(name==='activity')loadActivity();if(name==='admin')loadAdmin();if(name==='profile')loadProfile(S.profileUid||S.user.id);if(name==='add')loadAIStatus()}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-nav]');if(b){e.preventDefault();nav(b.dataset.nav)}});
 function setupCategoryUI(){$('#categorySelect').innerHTML=CATEGORIES.map(c=>`<option>${esc(c)}</option>`).join('');$('#categoryStrip').innerHTML=`<button class="category-chip active" data-cat="">All</button>`+CATEGORIES.map(c=>`<button class="category-chip" data-cat="${esc(c)}">${esc(c)}</button>`).join('');$$('[data-cat]').forEach(b=>b.onclick=()=>{S.category=b.dataset.cat;$$('[data-cat]').forEach(x=>x.classList.toggle('active',x===b));$('#recipesHeading').textContent=S.category||'All Recipes';loadRecipes()})}
 async function loadUsers(){S.users=await api('/api/users');$('#ownerFilter').innerHTML=`<option value="">Everyone's recipes</option>`+S.users.map(u=>`<option value="${u.id}">${esc(u.display_name)}</option>`).join('');$('#parentRecipeSelect').innerHTML=`<option value="">Not a variation</option>`+S.recipes.map(r=>`<option value="${r.id}">${esc(r.title)}</option>`).join('')}
@@ -40,14 +63,201 @@ function refreshAllStepSelectors(){$$('.step-row').forEach(r=>refreshStepSelecto
 function collectIngredients(){return $$('.ingredient-row').map(r=>{const q=r.querySelector('.ing-qty').value.trim();const numeric=/^\d+(?:\.\d+)?$/.test(q)?Number(q):null;return{quantity_text:q,quantity_num:numeric,unit:r.querySelector('.ing-unit').value.trim(),ingredient:r.querySelector('.ing-name').value.trim(),prep_note:r.querySelector('.ing-prep').value.trim(),aisle:r.querySelector('.ing-aisle').value.trim(),optional:r.querySelector('.ing-optional').checked,scalable:r.querySelector('.ing-scalable').checked}}).filter(x=>x.ingredient)}
 function collectSteps(){const keys=currentIngredients().map(x=>x.key);return $$('.step-row').map(r=>({title:r.querySelector('.step-title').value.trim(),instruction:r.querySelector('.step-text').value.trim(),temp_f:r.querySelector('.step-temp').value||null,duration_minutes:r.querySelector('.step-time').value||null,doneness:r.querySelector('.step-doneness').value.trim(),timer_label:r.querySelector('.step-timer-label').value.trim(),ingredients:[...r.querySelectorAll('.step-ing-choice')].filter(x=>x.querySelector('input').checked).map(x=>({ingredient_index:keys.indexOf(x.dataset.key),quantity_fraction:Number(x.querySelector('select').value)})).filter(x=>x.ingredient_index>=0)})).filter(x=>x.instruction)}
 $('#addIngredient').onclick=()=>{addIngredientRow();refreshAllStepSelectors()};$('#addStep').onclick=()=>addStepRow();
-function resetRecipeForm(){S.editId=null;S.importToken=null;$('#recipeFormTitle').textContent='Add a recipe';$('#recipeForm').reset();$('#ingredientRows').innerHTML='';$('#stepRows').innerHTML='';$('#importBadge').classList.add('hidden');$('#importCandidates').classList.add('hidden');$('#importStatus').textContent='';addIngredientRow();addIngredientRow();addIngredientRow();addStepRow();$('#categorySelect').value='Main Dishes'}
-function applyDraft(d,token){const f=$('#recipeForm');S.importToken=token||S.importToken;const fields=['title','description','category','subcategory','cuisine','equipment','servings_base','servings_label','prep_text','cook_text','total_text','visibility','original_author','approx_year','family_branch','occasion','family_story','parent_recipe_id','notes','tags'];fields.forEach(k=>{if(f.elements[k]&&d[k]!=null)f.elements[k].value=d[k]});$('#ingredientRows').innerHTML='';(d.ingredients||[]).forEach(addIngredientRow);if(!(d.ingredients||[]).length)addIngredientRow();$('#stepRows').innerHTML='';(d.steps||[]).forEach(addStepRow);if(!(d.steps||[]).length&&d.instructions)addStepRow({instruction:d.instructions});if(!$('#stepRows').children.length)addStepRow();if(S.importToken){$('#importBadge').textContent='Imported — review before saving';$('#importBadge').classList.remove('hidden')}window.scrollTo({top:document.querySelector('.form-section').offsetTop-80,behavior:'smooth'})}
+function resetRecipeForm(){S.editId=null;S.importToken=null;S.addMethod=null;S.existingStoryMedia=[];$('#recipeFormTitle').textContent='Add a recipe';$('#publishHint').textContent='Choose how the recipe comes in. We’ll guide you through the rest.';$('#recipeForm').reset();$('#ingredientRows').innerHTML='';$('#stepRows').innerHTML='';$('#importBadge').classList.add('hidden');$('#importCandidates').classList.add('hidden');$('#importCandidates').innerHTML='';$('#importStatus').textContent='';$('#storyUploadStatus').textContent='';$('#existingStoryMedia').innerHTML='';addIngredientRow();addIngredientRow();addIngredientRow();addStepRow();$('#categorySelect').value='Main Dishes';setAddWizardStage('method')}
+const ADD_METHOD_LABELS={ai:'Create with AI',photo:'Scan a Recipe',text:'Paste Recipe',chatgpt:'From ChatGPT',aijson:'AI Recipe JSON',manual:'Enter Manually',website:'From a Website'};
+
+function setAddWizardStage(stage){
+  S.addStage=stage;
+  ['method','source','review','story'].forEach(x=>{
+    const id={method:'#addMethodStage',source:'#addSourceStage',review:'#addReviewStage',story:'#addStoryStage'}[x];
+    $(id)?.classList.toggle('hidden',x!==stage);
+  });
+  $$('[data-wizard-step]').forEach(el=>{
+    const order={method:1,source:2,review:3,story:4};
+    const n=order[el.dataset.wizardStep],cur=order[stage];
+    el.classList.toggle('active',n===cur);
+    el.classList.toggle('done',n<cur);
+  });
+  window.scrollTo({top:Math.max(0,$('#addView').offsetTop-70),behavior:'smooth'});
+}
+
+function chooseAddMethod(method){
+  S.addMethod=method;
+  $('#selectedMethodBadge').textContent=ADD_METHOD_LABELS[method]||'Add Recipe';
+  $$('.source-method-panel').forEach(x=>x.classList.add('hidden'));
+  if(method==='manual'){
+    $('#importBadge').classList.add('hidden');
+    setAddWizardStage('review');
+    return;
+  }
+  $(`#sourcePanel-${method}`)?.classList.remove('hidden');
+  setAddWizardStage('source');
+  if(method==='ai')loadAIStatus();
+}
+
+$$('[data-add-method]').forEach(btn=>btn.onclick=()=>chooseAddMethod(btn.dataset.addMethod));
+$('#sourceBackBtn').onclick=()=>setAddWizardStage('method');
+$('#reviewBackBtn').onclick=()=>{
+  if(S.editId){nav('home');return}
+  if(S.addMethod&&S.addMethod!=='manual')setAddWizardStage('source');else setAddWizardStage('method')
+};
+$('#storyBackBtn').onclick=()=>setAddWizardStage('review');
+$('#skipStoryHint').onclick=()=>toast('That’s okay. The story is optional. Save whenever you’re ready.');
+
+$('#continueToStory').onclick=()=>{
+  const f=$('#recipeForm');
+  if(!f.reportValidity())return;
+  const hasIngredient=collectIngredients().some(x=>(x.ingredient||'').trim());
+  const hasStep=collectSteps().some(x=>(x.instruction||'').trim());
+  if(!hasIngredient){toast('Add at least one ingredient before continuing.');return}
+  if(!hasStep){toast('Add at least one cooking step before continuing.');return}
+  setAddWizardStage('story');
+};
+
+function renderExistingStoryMedia(){
+  const el=$('#existingStoryMedia');
+  if(!el)return;
+  const media=S.existingStoryMedia||[];
+  el.innerHTML=media.length?`<div class="story-existing-label">Already attached</div>${media.map(x=>`<div class="story-media-chip">${x.source_type==='story_video'?'🎥':'📷'} <span>${x.source_type==='story_video'?'Family video':'Family photo'}</span><button type="button" class="linkbtn" data-remove-story-media="${x.id}">Remove</button></div>`).join('')}`:'';
+  $$('[data-remove-story-media]').forEach(b=>b.onclick=async()=>{
+    if(!S.editId)return;
+    await api(`/api/recipes/${S.editId}/story-media/${b.dataset.removeStoryMedia}`,{method:'DELETE'});
+    S.existingStoryMedia=S.existingStoryMedia.filter(x=>x.id!==Number(b.dataset.removeStoryMedia));
+    renderExistingStoryMedia();
+    toast('Story media removed');
+  });
+}
+
+async function uploadStoryMedia(rid){
+  const input=$('#storyMedia');
+  const files=[...(input?.files||[])];
+  if(!files.length)return;
+  const fd=new FormData();
+  files.forEach(f=>fd.append('media',f));
+  $('#storyUploadStatus').textContent='Uploading family story media…';
+  const r=await fetch(`/api/recipes/${rid}/story-media`,{method:'POST',headers:{'X-CSRF-Token':S.csrf},body:fd});
+  const data=await r.json();
+  if(!r.ok)throw new Error(data.error||'Story media upload failed');
+  $('#storyUploadStatus').textContent=data.warnings?.length?`Recipe saved. Some story files were skipped: ${data.warnings.join(' ')}`:'Story media saved.';
+}
+
+function applyDraft(d,token){const f=$('#recipeForm');S.importToken=token||S.importToken;const fields=['title','description','category','subcategory','cuisine','equipment','servings_base','servings_label','prep_text','cook_text','total_text','visibility','original_author','approx_year','family_branch','occasion','family_story','parent_recipe_id','notes','tags'];fields.forEach(k=>{if(f.elements[k]&&d[k]!=null)f.elements[k].value=d[k]});$('#ingredientRows').innerHTML='';(d.ingredients||[]).forEach(addIngredientRow);if(!(d.ingredients||[]).length)addIngredientRow();$('#stepRows').innerHTML='';(d.steps||[]).forEach(addStepRow);if(!(d.steps||[]).length&&d.instructions)addStepRow({instruction:d.instructions});if(!$('#stepRows').children.length)addStepRow();if(S.importToken){$('#importBadge').textContent='Imported — review before saving';$('#importBadge').classList.remove('hidden')}setAddWizardStage('review')}
 function showCandidates(data){const c=data.candidates||[];S.importToken=data.token||null;if(!c.length){toast('No recipe candidate found');return}if(c.length===1){applyDraft(c[0],data.token);toast('Recipe imported. Review the highlighted structure before saving.');return}$('#importCandidates').classList.remove('hidden');$('#importCandidates').innerHTML=c.map((x,i)=>`<button type="button" class="candidate" data-candidate="${i}"><strong>${esc(x.title||`Recipe ${i+1}`)}</strong><span class="muted">${x.ingredients?.length||0} ingredients</span></button>`).join('');$$('[data-candidate]').forEach(b=>b.onclick=()=>applyDraft(c[Number(b.dataset.candidate)],data.token))}
-async function runImport(type){$('#importStatus').textContent='Importing…';try{let data;if(type==='website')data=await api('/api/import-url',jsonOpts('POST',{url:$('#websiteUrl').value.trim()}));if(type==='chatgpt')data=await api('/api/import-chatgpt',jsonOpts('POST',{url:$('#chatgptUrl').value.trim()}));if(type==='text')data=await api('/api/import-text',jsonOpts('POST',{text:$('#rawRecipeText').value}));if(type==='photo'){const files=$('#photoImport').files;if(!files.length)throw new Error('Choose one or more recipe-card photos first.');const fd=new FormData();[...files].forEach(f=>fd.append('images',f));const r=await fetch('/api/import-photo',{method:'POST',headers:{'X-CSRF-Token':S.csrf},body:fd});data=await r.json();if(!r.ok)throw new Error(data.error||'Photo import failed')}$('#importStatus').textContent=type==='photo'?'OCR complete. Review every uncertain quantity before saving.':'Import complete. Review before saving.';showCandidates(data)}catch(e){$('#importStatus').textContent=e.message;toast(e.message)}}
+async function runImport(type){
+  $('#importStatus').textContent='Importing…';
+  try{
+    let data;
+    if(type==='website')data=await api('/api/import-url',jsonOpts('POST',{url:$('#websiteUrl').value.trim()}));
+    if(type==='chatgpt')data=await api('/api/import-chatgpt',jsonOpts('POST',{url:$('#chatgptUrl').value.trim()}));
+    if(type==='text')data=await api('/api/import-text',jsonOpts('POST',{text:$('#rawRecipeText').value}));
+    if(type==='aijson'){
+      const text=$('#aiRecipeJson').value.trim();
+      if(!text)throw new Error('Paste Table & Tale recipe JSON or choose a .json file first.');
+      data=await api('/api/import-ai-json',jsonOpts('POST',{text}));
+    }
+    if(type==='photo'){
+      const files=$('#photoImport').files;
+      if(!files.length)throw new Error('Choose one or more recipe-card photos first.');
+      const fd=new FormData();[...files].forEach(f=>fd.append('images',f));
+      const r=await fetch('/api/import-photo',{method:'POST',headers:{'X-CSRF-Token':S.csrf},body:fd});
+      const raw=await r.text();let parsed={};try{parsed=JSON.parse(raw)}catch{}
+      if(!r.ok)throw new Error(parsed.error||`Photo import failed (${r.status})`);
+      data=parsed;
+    }
+    const warnings=data?.warnings||[];
+    $('#importStatus').innerHTML=(type==='photo'
+      ?'Photo read. Review every uncertain quantity before saving.'
+      :'Import complete. Loading the review screen…')
+      +(warnings.length?`<br><strong>${warnings.length} review note${warnings.length===1?'':'s'}:</strong> ${warnings.map(esc).join(' ')}`:'');
+    showCandidates(data);
+  }catch(e){
+    $('#importStatus').textContent=e.message;
+    toast(e.message);
+  }
+}
 $$('[data-import]').forEach(b=>b.onclick=()=>runImport(b.dataset.import));
-$('#recipeForm').onsubmit=async e=>{e.preventDefault();const form=e.currentTarget;const body=formObj(form);delete body.cover_image;body.ingredients=collectIngredients();body.steps=collectSteps();body.servings_base=body.servings_base||null;body.parent_recipe_id=body.parent_recipe_id||null;body.import_token=S.importToken||'';try{let rid;if(S.editId){rid=S.editId;await api(`/api/recipes/${rid}`,jsonOpts('PUT',body));toast('Recipe updated')}else{const r=await api('/api/recipes',jsonOpts('POST',body));rid=r.id;toast(r.status==='pending'?'Submitted for approval':'Recipe added')}const file=form.elements.cover_image.files?.[0];if(file){const fd=new FormData();fd.append('image',file);const rr=await fetch(`/api/recipes/${rid}/image`,{method:'POST',headers:{'X-CSRF-Token':S.csrf},body:fd});if(!rr.ok){const d=await rr.json();toast(d.error||'Recipe saved, but photo upload failed')}}resetRecipeForm();await loadRecipes();nav('home')}catch(err){toast(err.message)}};
+const aiJsonFile=$('#aiRecipeJsonFile');
+if(aiJsonFile){
+  aiJsonFile.onchange=async()=>{
+    const file=aiJsonFile.files?.[0];
+    if(!file)return;
+    try{
+      const text=await file.text();
+      $('#aiRecipeJson').value=text;
+      $('#aiJsonFileStatus').textContent=`Loaded ${file.name} (${Math.round(file.size/1024)} KB).`;
+    }catch(e){
+      $('#aiJsonFileStatus').textContent='Could not read that JSON file.';
+      toast('Could not read that JSON file.');
+    }
+  };
+}
+
+async function loadAIStatus(){
+  const el=$('#aiStatus');
+  if(!el)return;
+  try{
+    const d=await api('/api/ai/status');
+    if(!d.enabled){
+      el.innerHTML='<span class="pill">Off</span> Local AI is disabled by the Admin.';
+      $('#generateAIRecipe').disabled=true;
+      return d;
+    }
+    if(!d.available){
+      el.innerHTML=`<span class="pill warning-pill">Offline</span> Ollama is not reachable on the server PC.`;
+      $('#generateAIRecipe').disabled=true;
+      return d;
+    }
+    if(!d.model_installed){
+      el.innerHTML=`<span class="pill warning-pill">Model missing</span> Ollama is running, but <strong>${esc(d.model)}</strong> is not installed.`;
+      $('#generateAIRecipe').disabled=true;
+      return d;
+    }
+    el.innerHTML=`<span class="pill">Ready</span> Local AI: <strong>${esc(d.model)}</strong>`;
+    $('#generateAIRecipe').disabled=false;
+    return d;
+  }catch(e){
+    el.textContent=e.message;
+    $('#generateAIRecipe').disabled=true;
+  }
+}
+
+async function generateAIRecipe(){
+  const btn=$('#generateAIRecipe'),status=$('#aiGenerateStatus');
+  const prompt=$('#aiPrompt').value.trim();
+  if(!prompt){toast('Tell the AI what you want to make first.');return}
+  const body={
+    prompt,
+    servings:$('#aiServings').value||null,
+    max_time_minutes:$('#aiMaxTime').value||null,
+    category:$('#aiCategory').value,
+    cuisine:$('#aiCuisine').value.trim(),
+    spice_level:$('#aiSpice').value,
+    use_ingredients:$('#aiUseIngredients').value.trim(),
+    avoid_ingredients:$('#aiAvoidIngredients').value.trim(),
+    equipment:$('#aiEquipment').value.trim()
+  };
+  btn.disabled=true;
+  status.textContent='Creating a structured recipe on your server PC. The first request can take a minute while the model loads…';
+  try{
+    const data=await api('/api/ai/generate-recipe',jsonOpts('POST',body));
+    showCandidates(data);
+    const warn=(data.warnings||[]);
+    status.innerHTML=`Recipe generated with ${esc(data.meta?.model||'local AI')}. Review it before saving.${warn.length?`<br><strong>${warn.length} quality note${warn.length===1?'':'s'}:</strong> ${warn.map(esc).join(' ')}`:''}`;
+    $('#importBadge').textContent='AI generated · review before saving';
+    $('#importBadge').classList.remove('hidden');
+    toast('AI recipe ready for review');
+  }catch(e){
+    status.textContent=e.message;
+    toast(e.message);
+  }finally{
+    await loadAIStatus();
+  }
+}
+$('#generateAIRecipe').onclick=generateAIRecipe;
+
+$('#recipeForm').onsubmit=async e=>{e.preventDefault();const form=e.currentTarget;const body=formObj(form);delete body.cover_image;body.ingredients=collectIngredients();body.steps=collectSteps();body.servings_base=body.servings_base||null;body.parent_recipe_id=body.parent_recipe_id||null;body.import_token=S.importToken||'';const finish=$('#finishRecipeBtn');finish.disabled=true;finish.textContent='Saving…';try{let rid;if(S.editId){rid=S.editId;await api(`/api/recipes/${rid}`,jsonOpts('PUT',body));toast('Recipe updated')}else{const r=await api('/api/recipes',jsonOpts('POST',body));rid=r.id;toast(r.status==='pending'?'Submitted for approval':'Recipe added')}const file=form.elements.cover_image.files?.[0];if(file){const fd=new FormData();fd.append('image',file);const rr=await fetch(`/api/recipes/${rid}/image`,{method:'POST',headers:{'X-CSRF-Token':S.csrf},body:fd});if(!rr.ok){const d=await rr.json();toast(d.error||'Recipe saved, but finished-dish photo upload failed')}}try{await uploadStoryMedia(rid)}catch(mediaErr){toast(`Recipe saved, but story media needs attention: ${mediaErr.message}`)}resetRecipeForm();await loadRecipes();nav('home');await openRecipe(rid)}catch(err){toast(err.message)}finally{finish.disabled=false;finish.textContent='Save Recipe & Finish ✓'}};
 $('#cancelRecipe').onclick=()=>{resetRecipeForm();nav('home')};
-async function startEditRecipe(r){S.editId=r.id;S.importToken=null;$('#recipeDialog').close();nav('add');$('#recipeFormTitle').textContent='Edit recipe';const f=$('#recipeForm');const fields=['title','description','category','subcategory','cuisine','equipment','servings_base','servings_label','prep_text','cook_text','total_text','visibility','original_author','approx_year','family_branch','occasion','family_story','parent_recipe_id','notes','tags'];fields.forEach(k=>{if(f.elements[k])f.elements[k].value=r[k]??''});$('#ingredientRows').innerHTML='';r.ingredients.forEach(addIngredientRow);const idToIndex=new Map(r.ingredients.map((x,i)=>[x.id,i]));$('#stepRows').innerHTML='';r.steps.forEach(s=>addStepRow({...s,ingredients:s.ingredients.map(x=>({ingredient_index:idToIndex.get(x.ingredient_id),quantity_fraction:x.quantity_fraction}))}));if(!r.steps.length)addStepRow();window.scrollTo({top:0,behavior:'smooth'})}
+async function startEditRecipe(r){S.editId=r.id;S.importToken=null;S.addMethod='edit';S.existingStoryMedia=r.story_media||[];$('#recipeDialog').close();nav('add');$('#recipeFormTitle').textContent='Edit recipe';$('#publishHint').textContent='Review the recipe, then update its family story if you want.';const f=$('#recipeForm');const fields=['title','description','category','subcategory','cuisine','equipment','servings_base','servings_label','prep_text','cook_text','total_text','visibility','original_author','approx_year','family_branch','occasion','family_story','parent_recipe_id','notes','tags'];fields.forEach(k=>{if(f.elements[k])f.elements[k].value=r[k]??''});$('#ingredientRows').innerHTML='';r.ingredients.forEach(addIngredientRow);const idToIndex=new Map(r.ingredients.map((x,i)=>[x.id,i]));$('#stepRows').innerHTML='';r.steps.forEach(s=>addStepRow({...s,ingredients:s.ingredients.map(x=>({ingredient_index:idToIndex.get(x.ingredient_id),quantity_fraction:x.quantity_fraction}))}));if(!r.steps.length)addStepRow();renderExistingStoryMedia();setAddWizardStage('review')}
 
 // ---------- Recipe detail, scaling and cooking ----------
 const FRACTIONS=[[.125,'⅛'],[.25,'¼'],[.333,'⅓'],[.375,'⅜'],[.5,'½'],[.625,'⅝'],[.667,'⅔'],[.75,'¾'],[.875,'⅞']];
@@ -56,7 +266,7 @@ function scaledIng(i,f=S.detailScale,portion=1){const q=i.scalable!==0&&i.quanti
 function unitBase(value,unit){const u=(unit||'').toLowerCase().replace(/s$/,'');const maps={lb:['weight',453.592],oz:['weight',28.3495],g:['weight',1],kg:['weight',1000],tsp:['vol',4.92892],tbsp:['vol',14.7868],cup:['vol',236.588],ml:['vol',1],l:['vol',1000]};const m=maps[u];return m?{type:m[0],value:value*m[1]}:{type:u,value}}
 function factorFromAmount(ing,amount,unit){if(ing.quantity_num==null)return null;const have=unitBase(Number(amount),unit||ing.unit),need=unitBase(Number(ing.quantity_num),ing.unit);if(have.type!==need.type)return null;return have.value/need.value}
 async function openRecipe(id){try{S.currentRecipe=await api(`/api/recipes/${id}`);S.detailScale=1;renderRecipeDetail();$('#recipeDialog').showModal()}catch(e){toast(e.message)}}
-function renderRecipeDetail(){const r=S.currentRecipe,f=S.detailScale,serv=r.servings_base?Number(r.servings_base)*f:null,canEdit=S.user.role==='admin'||r.owner_id===S.user.id;const pairings=r.pairings||[];const sourcePhotos=(r.sources||[]).filter(x=>x.file_path);const sourceLinks=(r.sources||[]).filter(x=>x.source_url);const warnings=r.quality_warnings||[];$('#recipeDetail').innerHTML=`<div class="dialog-head"><div><p class="eyebrow">${esc(r.category)}</p><h2>${esc(r.title)}</h2><div class="byline">${avatarHtml(r.owner_avatar,r.owner_name||r.legacy_contributor)}<span>Added by ${esc(r.owner_name||r.legacy_contributor||'Family')}</span></div></div><button class="circle" id="closeRecipe">×</button></div><div class="detail-body"><div class="detail-hero"><div><h1 class="detail-title">${esc(r.title)}</h1><div class="pills"><span class="pill quality-badge">${r.quality_status==='structured'?'✓ Structured':'⚠ Needs review'}</span>${r.total_text?`<span class="pill">⏱ ${esc(r.total_text)}</span>`:''}${r.equipment?`<span class="pill">🔧 ${esc(r.equipment)}</span>`:''}${r.made_count?`<span class="pill">Made ${r.made_count}×</span>`:''}</div>${r.description?`<p class="lead">${esc(r.description)}</p>`:''}</div><div class="detail-actions"><button class="primary" id="startCook">▶ Cook Mode</button><button class="ghost" id="detailFav">${r.is_favorite?'♥ Favorite':'♡ Favorite'}</button><button class="ghost" id="madeBtn">✓ Made It</button><button class="secondary" id="addListBtn">🛒 List</button>${canEdit?`<button class="ghost" id="editRecipeBtn">Edit</button>`:''}</div></div><div class="serving-control"><strong>Serves</strong><button class="ghost mini-scale" data-mult="0.5">½×</button><input id="servingTarget" type="number" min="0.25" step="0.25" value="${serv?Number(serv.toFixed(2)):''}" ${r.servings_base?'':'disabled'}><button class="ghost mini-scale" data-mult="1">1×</button><button class="ghost mini-scale" data-mult="2">2×</button><button class="ghost" id="scaleIngredient">Scale to what I have</button><button class="linkbtn" id="resetScale">Reset</button></div><div id="scalePanel" class="scale-panel hidden"><label>Ingredient<select id="scaleIngSelect">${r.ingredients.filter(x=>x.quantity_num!=null&&x.scalable!==0).map(x=>`<option value="${x.id}">${esc(x.ingredient)} — ${esc(scaledIng(x,1))}</option>`).join('')}</select></label><label>Amount on hand<input id="scaleAmount" type="number" min="0" step="0.01"></label><label>Unit<input id="scaleUnit" placeholder="lb, oz, cup…"></label><button class="secondary" id="applyIngredientScale">Scale Recipe</button></div>${warnings.length?`<div class="warning-box"><strong>This recipe could use a structure review.</strong><ul>${warnings.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}<div class="detail-grid"><section><h3>Ingredients</h3><ul class="ingredient-list">${r.ingredients.map(i=>`<li><label><input type="checkbox"> ${esc(scaledIng(i,f))}</label></li>`).join('')}</ul></section><section><h3>Directions</h3>${r.steps.length?r.steps.map(s=>stepDisplay(s,f)).join(''):`<div class="step-text">${esc(r.instructions||'')}</div>`}</section></div>${r.family_story||r.original_author||r.approx_year||r.occasion?`<section class="story-block"><h3>Story & history</h3><div class="pills">${r.original_author?`<span class="pill">Original recipe by ${esc(r.original_author)}</span>`:''}${r.approx_year?`<span class="pill">${esc(r.approx_year)}</span>`:''}${r.family_branch?`<span class="pill">${esc(r.family_branch)}</span>`:''}${r.occasion?`<span class="pill">${esc(r.occasion)}</span>`:''}</div>${r.family_story?`<div class="story-copy">${esc(r.family_story)}</div>`:''}</section>`:''}${sourcePhotos.length||sourceLinks.length?`<section class="sources-block"><h3>Original sources</h3>${sourcePhotos.length?`<div class="source-gallery">${sourcePhotos.map(x=>`<a href="/uploads/${esc(x.file_path)}" target="_blank"><img src="/uploads/${esc(x.file_path)}" alt="Original recipe source"></a>`).join('')}</div>`:''}${sourceLinks.map(x=>`<p><a href="${esc(x.source_url)}" target="_blank" rel="noopener">${esc(x.source_label||x.source_type)}</a></p>`).join('')}</section>`:''}${pairings.length?`<section class="pairing-block"><div class="section-head"><div><h3>Complete the meal</h3><span>Pairings from the family cookbook.</span></div><button class="secondary" id="addMealList">Add Meal to List</button></div><div class="pairing-grid">${pairings.map((p,i)=>`<article class="pair-card" data-pair-recipe="${p.recipe_id}"><span class="pair-type">${esc(p.pairing_type)} · ${p.manual?'Family pairing':'Suggested'}</span><strong>${esc(p.title)}</strong><div class="byline">${avatarHtml(p.owner_avatar,p.owner_name)}<span>${esc(p.owner_name||'Family')}</span></div>${!p.manual&&canEdit?`<button class="linkbtn" data-pin-pair="${i}">Pin pairing</button>`:''}</article>`).join('')}</div></section>`:''}<section class="comments"><h3>Family rating</h3><div class="stars" id="ratingStars">${[1,2,3,4,5].map(n=>`<button data-rate="${n}" class="${(r.my_rating||0)>=n?'on':''}">★</button>`).join('')} <span class="muted">${r.rating_count?`${Number(r.rating_avg).toFixed(1)} from ${r.rating_count}`:'Be the first to rate it'}</span></div><h3 style="margin-top:22px">Comments & cooking notes</h3><div id="commentsList">${r.comments.map(commentHtml).join('')||'<p class="muted">No comments yet.</p>'}</div><form class="comment-form" id="commentForm"><textarea rows="2" placeholder="What should the family know next time?"></textarea><button class="primary">Comment</button></form></section><section class="personal-note"><h3>My private note</h3><textarea id="myNote" rows="3" placeholder="Only you can see this.">${esc(r.my_note||'')}</textarea><button class="ghost" id="saveMyNote">Save My Note</button></section>${r.revisions?.length&&canEdit?`<section class="history-block"><h3>Edit history</h3>${r.revisions.map(x=>`<div class="pending-card"><strong>${new Date(x.created_at).toLocaleString()}</strong><span class="muted"> · ${esc(x.changed_by_name||'Family')} · ${esc(x.reason||'Edited')}</span><button class="linkbtn" data-restore="${x.id}">Restore this version</button></div>`).join('')}</section>`:''}</div>`;bindRecipeDetail()}
+function renderRecipeDetail(){const r=S.currentRecipe,f=S.detailScale,serv=r.servings_base?Number(r.servings_base)*f:null,canEdit=S.user.role==='admin'||r.owner_id===S.user.id;const pairings=r.pairings||[];const storyMedia=r.story_media||[];const sourcePhotos=(r.sources||[]).filter(x=>x.file_path&&!String(x.source_type||'').startsWith('story_'));const sourceLinks=(r.sources||[]).filter(x=>x.source_url&&!String(x.source_type||'').startsWith('story_'));const warnings=r.quality_warnings||[];$('#recipeDetail').innerHTML=`<div class="dialog-head"><div><p class="eyebrow">${esc(r.category)}</p><h2>${esc(r.title)}</h2><div class="byline">${avatarHtml(r.owner_avatar,r.owner_name||r.legacy_contributor)}<span>Added by ${esc(r.owner_name||r.legacy_contributor||'Family')}</span></div></div><button class="circle" id="closeRecipe">×</button></div><div class="detail-body"><div class="detail-hero"><div><h1 class="detail-title">${esc(r.title)}</h1><div class="pills"><span class="pill quality-badge">${r.quality_status==='structured'?'✓ Structured':'⚠ Needs review'}</span>${r.total_text?`<span class="pill">⏱ ${esc(r.total_text)}</span>`:''}${r.equipment?`<span class="pill">🔧 ${esc(r.equipment)}</span>`:''}${r.made_count?`<span class="pill">Made ${r.made_count}×</span>`:''}</div>${r.description?`<p class="lead">${esc(r.description)}</p>`:''}</div><div class="detail-actions"><button class="primary" id="startCook">▶ Cook Mode</button><button class="ghost" id="detailFav">${r.is_favorite?'♥ Favorite':'♡ Favorite'}</button><button class="ghost" id="madeBtn">✓ Made It</button><button class="secondary" id="addListBtn">🛒 List</button>${canEdit?`<button class="ghost" id="editRecipeBtn">Edit</button>`:''}</div></div><div class="serving-control"><strong>Serves</strong><button class="ghost mini-scale" data-mult="0.5">½×</button><input id="servingTarget" type="number" min="0.25" step="0.25" value="${serv?Number(serv.toFixed(2)):''}" ${r.servings_base?'':'disabled'}><button class="ghost mini-scale" data-mult="1">1×</button><button class="ghost mini-scale" data-mult="2">2×</button><button class="ghost" id="scaleIngredient">Scale to what I have</button><button class="linkbtn" id="resetScale">Reset</button></div><div id="scalePanel" class="scale-panel hidden"><label>Ingredient<select id="scaleIngSelect">${r.ingredients.filter(x=>x.quantity_num!=null&&x.scalable!==0).map(x=>`<option value="${x.id}">${esc(x.ingredient)} — ${esc(scaledIng(x,1))}</option>`).join('')}</select></label><label>Amount on hand<input id="scaleAmount" type="number" min="0" step="0.01"></label><label>Unit<input id="scaleUnit" placeholder="lb, oz, cup…"></label><button class="secondary" id="applyIngredientScale">Scale Recipe</button></div>${warnings.length?`<div class="warning-box"><strong>This recipe could use a structure review.</strong><ul>${warnings.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}<div class="detail-grid"><section><h3>Ingredients</h3><ul class="ingredient-list">${r.ingredients.map(i=>`<li><label><input type="checkbox"> ${esc(scaledIng(i,f))}</label></li>`).join('')}</ul></section><section><h3>Directions</h3>${r.steps.length?r.steps.map(s=>stepDisplay(s,f)).join(''):`<div class="step-text">${esc(r.instructions||'')}</div>`}</section></div>${r.family_story||r.original_author||r.approx_year||r.occasion||storyMedia.length?`<section class="story-block"><h3>The story behind it</h3><div class="pills">${r.original_author?`<span class="pill">Original recipe by ${esc(r.original_author)}</span>`:''}${r.approx_year?`<span class="pill">${esc(r.approx_year)}</span>`:''}${r.family_branch?`<span class="pill">${esc(r.family_branch)}</span>`:''}${r.occasion?`<span class="pill">${esc(r.occasion)}</span>`:''}</div>${r.family_story?`<div class="story-copy">${esc(r.family_story)}</div>`:''}${storyMedia.length?`<div class="story-media-gallery">${storyMedia.map(x=>x.source_type==='story_video'?`<video controls preload="metadata" src="/uploads/${esc(x.file_path)}"></video>`:`<a href="/uploads/${esc(x.file_path)}" target="_blank"><img src="/uploads/${esc(x.file_path)}" alt="Family story photo"></a>`).join('')}</div>`:''}</section>`:''}${sourcePhotos.length||sourceLinks.length?`<section class="sources-block"><h3>Original sources</h3>${sourcePhotos.length?`<div class="source-gallery">${sourcePhotos.map(x=>`<a href="/uploads/${esc(x.file_path)}" target="_blank"><img src="/uploads/${esc(x.file_path)}" alt="Original recipe source"></a>`).join('')}</div>`:''}${sourceLinks.map(x=>`<p><a href="${esc(x.source_url)}" target="_blank" rel="noopener">${esc(x.source_label||x.source_type)}</a></p>`).join('')}</section>`:''}${pairings.length?`<section class="pairing-block"><div class="section-head"><div><h3>Complete the meal</h3><span>Pairings from the family cookbook.</span></div><button class="secondary" id="addMealList">Add Meal to List</button></div><div class="pairing-grid">${pairings.map((p,i)=>`<article class="pair-card" data-pair-recipe="${p.recipe_id}"><span class="pair-type">${esc(p.pairing_type)} · ${p.manual?'Family pairing':'Suggested'}</span><strong>${esc(p.title)}</strong><div class="byline">${avatarHtml(p.owner_avatar,p.owner_name)}<span>${esc(p.owner_name||'Family')}</span></div>${!p.manual&&canEdit?`<button class="linkbtn" data-pin-pair="${i}">Pin pairing</button>`:''}</article>`).join('')}</div></section>`:''}<section class="comments"><h3>Family rating</h3><div class="stars" id="ratingStars">${[1,2,3,4,5].map(n=>`<button data-rate="${n}" class="${(r.my_rating||0)>=n?'on':''}">★</button>`).join('')} <span class="muted">${r.rating_count?`${Number(r.rating_avg).toFixed(1)} from ${r.rating_count}`:'Be the first to rate it'}</span></div><h3 style="margin-top:22px">Comments & cooking notes</h3><div id="commentsList">${r.comments.map(commentHtml).join('')||'<p class="muted">No comments yet.</p>'}</div><form class="comment-form" id="commentForm"><textarea rows="2" placeholder="What should the family know next time?"></textarea><button class="primary">Comment</button></form></section><section class="personal-note"><h3>My private note</h3><textarea id="myNote" rows="3" placeholder="Only you can see this.">${esc(r.my_note||'')}</textarea><button class="ghost" id="saveMyNote">Save My Note</button></section>${r.revisions?.length&&canEdit?`<section class="history-block"><h3>Edit history</h3>${r.revisions.map(x=>`<div class="pending-card"><strong>${new Date(x.created_at).toLocaleString()}</strong><span class="muted"> · ${esc(x.changed_by_name||'Family')} · ${esc(x.reason||'Edited')}</span><button class="linkbtn" data-restore="${x.id}">Restore this version</button></div>`).join('')}</section>`:''}</div>`;bindRecipeDetail()}
 function stepDisplay(s,f){return `<div class="step-display"><h4>Step ${s.step_number}${s.title?` · ${esc(s.title)}`:''}</h4>${s.ingredients?.length?`<div class="step-use"><strong>Use:</strong> ${s.ingredients.map(i=>esc(scaledIng(i,f,Number(i.quantity_fraction||1)))).join(' · ')}</div>`:''}<div class="step-text">${esc(s.instruction)}</div><div class="step-facts">${s.temp_f?`<span class="pill">🌡 ${formatQty(s.temp_f)}°F</span>`:''}${s.duration_minutes?`<span class="pill">⏱ ${formatQty(s.duration_minutes)} min</span>`:''}${s.doneness?`<span class="pill">✓ ${esc(s.doneness)}</span>`:''}</div></div>`}
 function commentHtml(c){const can=S.user.role==='admin'||c.user_id===S.user.id;return `<div class="comment"><div class="comment-head"><div class="comment-person">${avatarHtml(c.avatar_path,c.display_name)}<strong>${esc(c.display_name)}</strong></div><span class="muted">${new Date(c.created_at).toLocaleDateString()}</span></div><p>${esc(c.body)}</p>${can?`<button class="linkbtn" data-delete-comment="${c.id}">Delete</button>`:''}</div>`}
 function bindRecipeDetail(){const r=S.currentRecipe;$('#closeRecipe').onclick=()=>$('#recipeDialog').close();$('#detailFav').onclick=async()=>{await api(`/api/recipes/${r.id}/favorite`,jsonOpts('POST',{}));await openRecipe(r.id);loadRecipes()};$('#madeBtn').onclick=async()=>{await api(`/api/recipes/${r.id}/made`,jsonOpts('POST',{}));toast('Marked as made');await openRecipe(r.id)};$('#startCook').onclick=()=>startCookMode();$('#addListBtn').onclick=()=>openAddToList([{id:r.id,servings:r.servings_base?Number(r.servings_base)*S.detailScale:null}],`Add ${r.title} to list`);$('#editRecipeBtn')&&($('#editRecipeBtn').onclick=()=>startEditRecipe(r));$$('.mini-scale').forEach(b=>b.onclick=()=>{S.detailScale=Number(b.dataset.mult);renderRecipeDetail()});$('#servingTarget').onchange=e=>{if(r.servings_base){S.detailScale=Number(e.target.value)/Number(r.servings_base);renderRecipeDetail()}};$('#resetScale').onclick=()=>{S.detailScale=1;renderRecipeDetail()};$('#scaleIngredient').onclick=()=>$('#scalePanel').classList.toggle('hidden');$('#scaleIngSelect')&&($('#scaleIngSelect').onchange=e=>{const ing=r.ingredients.find(x=>x.id===Number(e.target.value));$('#scaleUnit').value=ing?.unit||''});$('#applyIngredientScale')&&($('#applyIngredientScale').onclick=()=>{const ing=r.ingredients.find(x=>x.id===Number($('#scaleIngSelect').value));const f=factorFromAmount(ing,Number($('#scaleAmount').value),$('#scaleUnit').value);if(!f||f<=0){toast('Use a compatible unit and a positive amount.');return}S.detailScale=f;renderRecipeDetail()});$$('[data-rate]').forEach(b=>b.onclick=async()=>{await api(`/api/recipes/${r.id}/rating`,jsonOpts('POST',{rating:Number(b.dataset.rate)}));await openRecipe(r.id);loadRecipes()});$('#commentForm').onsubmit=async e=>{e.preventDefault();const body=e.currentTarget.querySelector('textarea').value.trim();if(!body)return;await api(`/api/recipes/${r.id}/comments`,jsonOpts('POST',{body}));await openRecipe(r.id)};$$('[data-delete-comment]').forEach(b=>b.onclick=async()=>{await api(`/api/comments/${b.dataset.deleteComment}`,{method:'DELETE'});await openRecipe(r.id)});$('#saveMyNote').onclick=async()=>{await api(`/api/recipes/${r.id}/my-note`,jsonOpts('POST',{body:$('#myNote').value}));toast('Private note saved')};$$('[data-pair-recipe]').forEach(x=>x.onclick=e=>{if(e.target.closest('[data-pin-pair]'))return;openRecipe(Number(x.dataset.pairRecipe))});$$('[data-pin-pair]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const p=r.pairings[Number(b.dataset.pinPair)];await api(`/api/recipes/${r.id}/pairings`,jsonOpts('POST',{paired_recipe_id:p.recipe_id,pairing_type:p.pairing_type}));toast('Pairing saved');await openRecipe(r.id)});$('#addMealList')&&($('#addMealList').onclick=()=>openAddToList([{id:r.id,servings:r.servings_base?Number(r.servings_base)*S.detailScale:null},...r.pairings.map(p=>({id:p.recipe_id,servings:null}))],`Add ${r.title} meal to list`));$$('[data-restore]').forEach(b=>b.onclick=async()=>{if(confirm('Restore this older version? The current version will be saved in history first.')){await api(`/api/recipes/${r.id}/revisions/${b.dataset.restore}/restore`,jsonOpts('POST',{}));toast('Version restored');await openRecipe(r.id);loadRecipes()}})}
@@ -90,9 +300,33 @@ $('#avatarForm').onsubmit=async e=>{e.preventDefault();const fd=new FormData(e.c
 async function loadActivity(){if(!S.user)return;const rows=await api('/api/activity');const verbs={recipe:'added',comment:'commented on',made:'made',rating:'rated'};$('#activityFeed').innerHTML=rows.map(x=>{let detail=x.detail,extra='';if(x.type==='rating'&&detail.includes('|')){const z=detail.split('|');detail=z[0];extra=` ${z[1]}★`}return `<div class="activity" data-activity-recipe="${x.recipe_id}">${avatarHtml(x.avatar_path,x.user_name)}<div><strong>${esc(x.user_name)}</strong> ${verbs[x.type]}${extra} <strong>${esc(detail)}</strong><div class="muted">${new Date(x.ts).toLocaleString()}</div></div></div>`}).join('');$$('[data-activity-recipe]').forEach(x=>x.onclick=()=>openRecipe(Number(x.dataset.activityRecipe)))}
 
 // Admin
-async function loadAdmin(){if(S.user.role!=='admin')return;const [pending,members,settings]=await Promise.all([api('/api/pending'),api('/api/users'),api('/api/admin/settings')]);$('#brandingForm').elements.site_name.value=settings.branding.site_name;$('#brandingForm').elements.tagline.value=settings.branding.tagline;$('#brandingForm').elements.brand_accent.value=settings.branding.brand_accent||'#b85f3f';const sh=settings.sharing||{};$('#sharingForm').elements.public_url.value=sh.public_url||'';const shareStatus=$('#publicUrlStatus');if(sh.public_url){shareStatus.innerHTML=`<strong>Public sharing:</strong> ${esc(sh.public_url)} <span class="pill">Configured</span>`}else if(sh.detected_public_url){shareStatus.innerHTML=`<strong>Detected Tailscale Funnel:</strong> ${esc(sh.detected_public_url)} <span class="pill">Automatic</span>`}else if(sh.effective_public_url){shareStatus.innerHTML=`<strong>Public address:</strong> ${esc(sh.effective_public_url)}`}else{shareStatus.innerHTML=`<strong>Public URL not configured.</strong> Add your HTTPS Funnel/domain address below so invites work away from home.`}$('#pendingList').innerHTML=pending.length?pending.map(r=>`<div class="pending-card"><strong>${esc(r.title)}</strong><div class="muted">by ${esc(r.owner_name)}</div><div class="pending-actions"><button class="secondary" data-approve="${r.id}">Approve</button><button class="danger" data-reject="${r.id}">Reject</button></div></div>`).join(''):'<p class="muted">Nothing waiting for review.</p>';$$('[data-approve]').forEach(b=>b.onclick=async()=>{await api(`/api/pending/${b.dataset.approve}/approve`,jsonOpts('POST',{}));toast('Approved');loadAdmin();loadRecipes()});$$('[data-reject]').forEach(b=>b.onclick=async()=>{await api(`/api/pending/${b.dataset.reject}/reject`,jsonOpts('POST',{}));toast('Rejected');loadAdmin()});$('#adminMembers').innerHTML=members.map(u=>`<div class="pending-card"><div class="comment-person">${avatarHtml(u.avatar_path,u.display_name)}<div><strong>${esc(u.display_name)}</strong><div class="muted">@${esc(u.username)} · ${esc(u.role)} · ${u.recipe_count} recipes</div></div></div>${u.id!==S.user.id?`<div class="pending-actions"><select data-role-user="${u.id}"><option value="member" ${u.role==='member'?'selected':''}>Member</option><option value="guest" ${u.role==='guest'?'selected':''}>Guest</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option></select><button class="ghost" data-reset-user="${u.id}">Reset Password</button><button class="danger" data-disable-user="${u.id}">Disable</button></div>`:'<span class="pill">You</span>'}</div>`).join('');$$('[data-role-user]').forEach(s=>s.onchange=async()=>{await api(`/api/admin/users/${s.dataset.roleUser}`,jsonOpts('PATCH',{role:s.value}));toast('Role updated');loadUsers();loadAdmin()});$$('[data-reset-user]').forEach(b=>b.onclick=async()=>{const p=prompt('Temporary password, at least 10 characters:');if(!p)return;await api(`/api/admin/users/${b.dataset.resetUser}/reset-password`,jsonOpts('POST',{new_password:p}));toast('Password reset')});$$('[data-disable-user]').forEach(b=>b.onclick=async()=>{if(confirm('Disable this account?')){await api(`/api/admin/users/${b.dataset.disableUser}`,jsonOpts('PATCH',{active:false}));toast('Account disabled');loadUsers();loadAdmin()}})}
+async function loadAdmin(){if(S.user.role!=='admin')return;const [pending,members,settings]=await Promise.all([api('/api/pending'),api('/api/users'),api('/api/admin/settings')]);$('#brandingForm').elements.site_name.value=settings.branding.site_name;$('#brandingForm').elements.tagline.value=settings.branding.tagline;$('#brandingForm').elements.brand_accent.value=settings.branding.brand_accent||'#b85f3f';const ai=settings.ai||{};$('#aiSettingsForm').elements.ai_enabled.checked=!!ai.enabled;$('#aiSettingsForm').elements.ai_ollama_url.value=ai.ollama_url||'http://127.0.0.1:11434';$('#aiSettingsForm').elements.ai_text_model.value=ai.text_model||'qwen3:8b';$('#aiSettingsForm').elements.ai_timeout_seconds.value=ai.timeout_seconds||180;loadAIAdminStatus();const sh=settings.sharing||{};$('#sharingForm').elements.public_url.value=sh.public_url||'';const shareStatus=$('#publicUrlStatus');if(sh.public_url){shareStatus.innerHTML=`<strong>Public sharing:</strong> ${esc(sh.public_url)} <span class="pill">Configured</span>`}else if(sh.detected_public_url){shareStatus.innerHTML=`<strong>Detected Tailscale Funnel:</strong> ${esc(sh.detected_public_url)} <span class="pill">Automatic</span>`}else if(sh.effective_public_url){shareStatus.innerHTML=`<strong>Public address:</strong> ${esc(sh.effective_public_url)}`}else{shareStatus.innerHTML=`<strong>Public URL not configured.</strong> Add your HTTPS Funnel/domain address below so invites work away from home.`}$('#pendingList').innerHTML=pending.length?pending.map(r=>`<div class="pending-card"><strong>${esc(r.title)}</strong><div class="muted">by ${esc(r.owner_name)}</div><div class="pending-actions"><button class="secondary" data-approve="${r.id}">Approve</button><button class="danger" data-reject="${r.id}">Reject</button></div></div>`).join(''):'<p class="muted">Nothing waiting for review.</p>';$$('[data-approve]').forEach(b=>b.onclick=async()=>{await api(`/api/pending/${b.dataset.approve}/approve`,jsonOpts('POST',{}));toast('Approved');loadAdmin();loadRecipes()});$$('[data-reject]').forEach(b=>b.onclick=async()=>{await api(`/api/pending/${b.dataset.reject}/reject`,jsonOpts('POST',{}));toast('Rejected');loadAdmin()});$('#adminMembers').innerHTML=members.map(u=>`<div class="pending-card"><div class="comment-person">${avatarHtml(u.avatar_path,u.display_name)}<div><strong>${esc(u.display_name)}</strong><div class="muted">@${esc(u.username)} · ${esc(u.role)} · ${u.recipe_count} recipes</div></div></div>${u.id!==S.user.id?`<div class="pending-actions"><select data-role-user="${u.id}"><option value="member" ${u.role==='member'?'selected':''}>Member</option><option value="guest" ${u.role==='guest'?'selected':''}>Guest</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option></select><button class="ghost" data-reset-user="${u.id}">Reset Password</button><button class="danger" data-disable-user="${u.id}">Disable</button></div>`:'<span class="pill">You</span>'}</div>`).join('');$$('[data-role-user]').forEach(s=>s.onchange=async()=>{await api(`/api/admin/users/${s.dataset.roleUser}`,jsonOpts('PATCH',{role:s.value}));toast('Role updated');loadUsers();loadAdmin()});$$('[data-reset-user]').forEach(b=>b.onclick=async()=>{const p=prompt('Temporary password, at least 10 characters:');if(!p)return;await api(`/api/admin/users/${b.dataset.resetUser}/reset-password`,jsonOpts('POST',{new_password:p}));toast('Password reset')});$$('[data-disable-user]').forEach(b=>b.onclick=async()=>{if(confirm('Disable this account?')){await api(`/api/admin/users/${b.dataset.disableUser}`,jsonOpts('PATCH',{active:false}));toast('Account disabled');loadUsers();loadAdmin()}})}
 $('#brandingForm').onsubmit=async e=>{e.preventDefault();const r=await api('/api/admin/settings',jsonOpts('POST',formObj(e.currentTarget)));applyBranding(r.branding);toast('Branding updated')};
 $('#sharingForm').onsubmit=async e=>{e.preventDefault();const r=await api('/api/admin/settings',jsonOpts('POST',{public_url:e.currentTarget.elements.public_url.value.trim()}));toast(r.sharing?.public_url?'Public sharing URL saved':'Public URL cleared; automatic detection enabled');loadAdmin()};
+async function loadAIAdminStatus(){
+  const el=$('#aiAdminStatus');if(!el)return;
+  try{
+    const d=await api('/api/ai/status');
+    if(!d.enabled){el.textContent='AI is disabled.';return}
+    if(!d.available){el.textContent='Ollama is not reachable on this server PC.';return}
+    if(!d.model_installed){el.textContent=`Ollama is online, but ${d.model} is not installed.`;return}
+    el.textContent=`Ready: ${d.model}`;
+  }catch(e){el.textContent=e.message}
+}
+$('#aiSettingsForm').onsubmit=async e=>{
+  e.preventDefault();
+  const f=e.currentTarget;
+  const body={
+    ai_enabled:f.elements.ai_enabled.checked,
+    ai_ollama_url:f.elements.ai_ollama_url.value.trim(),
+    ai_text_model:f.elements.ai_text_model.value.trim(),
+    ai_timeout_seconds:Number(f.elements.ai_timeout_seconds.value||180)
+  };
+  await api('/api/admin/settings',jsonOpts('POST',body));
+  toast('AI settings saved');
+  loadAIAdminStatus();
+};
+$('#testAIButton').onclick=loadAIAdminStatus;
 $('#inviteForm').onsubmit=async e=>{e.preventDefault();const b=formObj(e.currentTarget);b.days=Number(b.days);const r=await api('/api/admin/invites',jsonOpts('POST',b));const link=r.invite_url||`${location.origin}/?invite=${encodeURIComponent(r.code)}`;$('#inviteResult').classList.remove('hidden');const warning=r.public_url?'':`<p class="warning"><strong>Local link warning:</strong> No public cookbook URL is configured or detected. This link may only work from your current network. Configure Public Sharing above.</p>`;$('#inviteResult').innerHTML=`<strong>Invite created</strong><p>Send this link to ${esc(b.label||'them')}:</p><a href="${esc(link)}" target="_blank" rel="noopener">${esc(link)}</a><div class="pending-actions"><button type="button" class="secondary" id="copyInviteLink">Copy invite link</button></div>${warning}<p class="muted">Or code: <code>${esc(r.code)}</code><br>Role: ${esc(r.role)} · expires ${new Date(r.expires_at).toLocaleDateString()}</p>`;const cb=$('#copyInviteLink');if(cb)cb.onclick=async()=>{try{await navigator.clipboard.writeText(link);toast('Invite link copied')}catch{prompt('Copy this invite link:',link)}}};
 
 resetRecipeForm();boot().catch(e=>{console.error(e);toast('Could not start the cookbook')});

@@ -1,0 +1,23 @@
+TABLE & TALE RECIPE CARD ARCHIVIST - CHAT FALLBACK
+
+Use this when your ChatGPT account does not support installing Skills.
+
+1. Upload:
+   - SKILL.md
+   - table-and-tale-recipe.schema.json
+   - all photos of the recipe card/cookbook pages
+
+2. Send this message:
+
+Use the attached Table & Tale Recipe Card Archivist instructions and schema.
+Analyze all recipe images together. Preserve the original recipe conservatively.
+Do not invent missing quantities, times, temperatures, servings, or family history.
+Ask me concise clarification questions for any critical ambiguity before finalizing.
+When everything is resolved, output only Table & Tale-compatible JSON.
+
+3. Copy the final JSON.
+
+4. In Table & Tale:
+   Add Recipe -> AI Recipe JSON -> Validate & Import
+
+5. Review the recipe before saving.

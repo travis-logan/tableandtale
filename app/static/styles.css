@@ -18,3 +18,97 @@ dialog{color:var(--ink)}dialog::backdrop{background:rgba(15,14,12,.58);backdrop-
 .app-version{font-size:.78rem;line-height:1.2;color:var(--muted);letter-spacing:.02em}
 .auth-version{margin-top:18px;text-align:center;opacity:.8}
 .account-version{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);text-align:center;width:100%}
+
+
+/* v3.3 local AI beta */
+.ai-create-panel{
+  border:1px solid color-mix(in srgb,var(--accent) 38%,var(--line));
+  border-radius:22px;
+  padding:22px;
+  margin-bottom:22px;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 9%,var(--panel)),var(--panel));
+}
+.ai-options-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+.ai-options-grid label{display:flex;flex-direction:column;gap:6px}
+.ai-actions{align-items:center;justify-content:space-between}
+.warning-pill{border-color:#b07b25}
+.checkline{display:flex!important;flex-direction:row!important;align-items:center;gap:10px}
+@media(max-width:720px){
+  .ai-options-grid{grid-template-columns:1fr}
+  .ai-options-grid .span2{grid-column:auto}
+  .ai-actions{align-items:stretch}
+}
+
+
+/* v3.3.0 beta 2 - Add Recipe wizard */
+.wizard-form{display:block}
+.recipe-wizard-progress{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 auto 20px;max-width:760px}
+.recipe-wizard-progress span{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.9rem;font-weight:700;white-space:nowrap}
+.recipe-wizard-progress span b{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:var(--panel)}
+.recipe-wizard-progress span.active{color:var(--text)}
+.recipe-wizard-progress span.active b{background:var(--accent);border-color:var(--accent);color:white}
+.recipe-wizard-progress span.done b{background:color-mix(in srgb,var(--accent) 16%,var(--panel));border-color:var(--accent);color:var(--accent)}
+.recipe-wizard-progress i{width:50px;height:1px;background:var(--line)}
+.wizard-stage{max-width:1100px;margin:0 auto}
+.wizard-stage-head{text-align:center;max-width:720px;margin:0 auto 24px}
+.wizard-stage-head h2{font-size:clamp(1.7rem,4vw,2.45rem);margin:5px 0 8px}
+.wizard-stage-head p{color:var(--muted);margin:0}
+.wizard-stage-topline{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.add-method-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.add-method-card{text-align:left;display:grid;grid-template-columns:auto 1fr;column-gap:14px;row-gap:4px;padding:20px;border:1px solid var(--line);border-radius:18px;background:var(--panel);color:var(--text);cursor:pointer;transition:.16s ease}
+.add-method-card:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--accent) 55%,var(--line));box-shadow:0 10px 28px rgba(0,0,0,.08)}
+.add-method-card.featured{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 13%,var(--panel)),var(--panel))}
+.add-method-card .method-icon{font-size:1.8rem;grid-row:1 / span 2}
+.add-method-card strong{font-size:1.08rem}
+.add-method-card small{color:var(--muted);line-height:1.45}
+.source-method-panel{max-width:820px;margin:0 auto}
+.source-method-panel>label{display:flex;flex-direction:column;gap:7px}
+.wizard-source-action{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-top:18px}
+.drop-style-field{border:2px dashed var(--line);border-radius:18px;padding:28px;display:grid;gap:10px;text-align:center}
+.drop-style-field .method-icon{font-size:2.2rem}
+.import-status{max-width:820px;margin:14px auto}
+.review-intro{margin-bottom:16px}
+#addReviewStage>.panel.form-section{margin-bottom:16px}
+.wizard-footer{max-width:1100px;margin:18px auto 0;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.story-finale{text-align:center;max-width:720px;margin:8px auto 28px}
+.story-finale-icon{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;margin:0 auto 12px;background:color-mix(in srgb,var(--accent) 16%,var(--panel));color:var(--accent);font-size:1.7rem}
+.story-finale h2{font-size:clamp(1.9rem,4vw,2.6rem);margin:5px 0 10px}
+.story-finale p:last-child{color:var(--muted);line-height:1.6}
+.story-fields{max-width:900px;margin:0 auto}
+.story-media-box{max-width:900px;margin:22px auto 0;padding:20px;border:1px solid var(--line);border-radius:18px;background:color-mix(in srgb,var(--panel) 94%,var(--accent))}
+.story-media-box>div:first-child p{margin:5px 0 14px}
+.story-media-preview{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.story-existing-label{width:100%;font-size:.85rem;color:var(--muted)}
+.story-media-chip{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:6px 10px}
+.story-media-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:18px}
+.story-media-gallery img,.story-media-gallery video{display:block;width:100%;max-height:360px;object-fit:cover;border-radius:16px;border:1px solid var(--line);background:#000}
+@media(max-width:720px){
+  .recipe-wizard-progress{gap:5px;justify-content:space-between}
+  .recipe-wizard-progress span{font-size:0}.recipe-wizard-progress span b{font-size:.82rem}
+  .recipe-wizard-progress i{width:18px;flex:1}
+  .add-method-grid{grid-template-columns:1fr}
+  .wizard-source-action,.wizard-footer{align-items:stretch;flex-direction:column-reverse}
+  .wizard-source-action button,.wizard-footer button{width:100%}
+}
+
+
+/* v3.3 beta 3 - downloadable ChatGPT recipe-card skill */
+.skill-download-callout{
+  display:flex;align-items:center;justify-content:space-between;gap:18px;
+  border:1px solid color-mix(in srgb,var(--accent) 38%,var(--line));
+  background:color-mix(in srgb,var(--accent) 7%,var(--panel));
+  border-radius:16px;padding:16px 18px;margin:0 0 18px;
+}
+.skill-download-callout p{margin:4px 0 0;color:var(--muted);line-height:1.45}
+.button-link{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;white-space:nowrap}
+.skill-mini-links{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;margin:-10px 0 18px;font-size:.9rem}
+.skill-mini-links a{color:var(--accent);font-weight:700}
+@media(max-width:720px){
+  .skill-download-callout{align-items:stretch;flex-direction:column}
+  .skill-download-callout .button-link{width:100%}
+}
+
+
+/* beta 4 - resilient AI JSON import */
+.json-file-import{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px}
+.json-file-import .button-link{cursor:pointer}

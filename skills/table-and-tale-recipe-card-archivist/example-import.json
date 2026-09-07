@@ -1,0 +1,50 @@
+{
+  "title": "Grandma's Example Cake",
+  "description": "Transcribed from a handwritten family recipe card.",
+  "category": "Desserts",
+  "subcategory": "Cake",
+  "cuisine": "",
+  "equipment": "",
+  "servings_base": 12,
+  "servings_label": "12 servings",
+  "prep_text": "",
+  "cook_text": "",
+  "total_text": "",
+  "visibility": "family",
+  "original_author": "Grandma",
+  "approx_year": "",
+  "family_branch": "",
+  "occasion": "",
+  "family_story": "Mom wrote on the back that this was made every Easter.",
+  "notes": "IMPORT REVIEW: The original card does not specify a baking time.",
+  "tags": "family-recipe cake",
+  "ingredients": [
+    {
+      "quantity_num": 2,
+      "quantity_text": "2",
+      "unit": "cups",
+      "ingredient": "flour",
+      "prep_note": "",
+      "aisle": "Pantry",
+      "optional": false,
+      "scalable": true
+    }
+  ],
+  "steps": [
+    {
+      "title": "Mix",
+      "instruction": "Mix 2 cups flour with the remaining ingredients as written on the original card.",
+      "temp_f": null,
+      "duration_minutes": null,
+      "timer_label": "",
+      "doneness": "",
+      "ingredients": [
+        {
+          "ingredient_index": 0,
+          "quantity_fraction": 1,
+          "note": ""
+        }
+      ]
+    }
+  ]
+}

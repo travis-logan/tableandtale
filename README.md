@@ -1,124 +1,106 @@
-# Table & Tale
+# Table & Tale v3.0
 
 **Recipes worth remembering.**
 
-Table & Tale is a self-hosted digital family cookbook. It is designed to preserve
-family recipes, recipe-card photos, stories, contributors, comments, ratings,
-shopping lists, meal pairings, and structured cooking instructions while remaining
-easy to run on a Windows home server.
+Table & Tale is a locally hosted, invite-only digital family cookbook. The Windows PC is the source of truth, while HTTPS remote access can make the same private cookbook available to close friends and family from normal phone and desktop browsers.
 
-Current source version: **3.2.2**
+## v3 architecture
 
-## Stack
+- Flask + Waitress application server
+- SQLite source-of-truth database
+- local uploads for dish photos, profile photos, and original recipe cards
+- Tesseract OCR support for recipe-card transcription
+- PWA frontend for mobile and desktop
+- additive database migrations from the existing Family Cookbook database
+- automatic nightly backups
+- optional Tailscale Funnel / Cloudflare Tunnel remote access
 
-- **Backend:** Python 3 + Flask
-- **Production WSGI server:** Waitress
-- **Database:** SQLite
-- **Frontend:** HTML, CSS, and vanilla JavaScript
-- **PWA:** web app manifest + service worker
-- **Image handling:** Pillow
-- **Recipe-card OCR:** pytesseract / Tesseract OCR
-- **Recipe import parsing:** BeautifulSoup + JSON-LD parsing
-- **Windows deployment:** PowerShell + batch launchers
-- **Remote access:** designed for HTTPS tunneling such as Tailscale Funnel
+## Upgrade safety
 
-There is currently no React/Vue frontend, Node backend, ORM, Docker requirement,
-or external cloud database.
+The v3 installer does not replace or reseed an existing `cookbook.db`.
 
-## Development setup
+Existing user IDs, usernames, password hashes, roles, ratings, comments, favorites, recipes, and cook history remain in the original database. New v3 columns and tables are added through SQLite migrations.
 
-### 1. Clone the repo
+The installer creates a pre-upgrade restore point and validates the existing user count after the server starts. Failed upgrades roll back automatically.
 
-```bash
-git clone <repo-url>
-cd table-and-tale
-```
+## Core family features
 
-### 2. Create a virtual environment
+- Admin, Member, and Guest accounts
+- invite-only registration
+- profile photos
+- recipe contributor attribution
+- ratings and comments
+- favorites and Made It history
+- family activity feed
+- private personal notes
+- recipe edit history
+- original recipe provenance and family stories
 
-Windows PowerShell:
+## Recipe structure
 
-```powershell
-py -3 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
+Ingredients are stored as structured rows with quantity, unit, ingredient, preparation note, grocery aisle, optional status, and whether the quantity scales.
 
-### 3. Create local config
+Cooking steps are structured separately. Each step can link the ingredients used in that step and what fraction of the recipe quantity is used. This allows scaled quantities to appear inside Cook Mode rather than only in the master ingredient list.
 
-```powershell
-Copy-Item config.example.json config.json
-```
+Legacy recipes remain intact and are automatically converted into basic steps where possible. They are marked **Needs Review** until a family member confirms the structured quantities, temperatures, times, and step ingredient allocations.
 
-Replace `secret_key` in `config.json` with a random value before using the app
-with real accounts.
+## Dynamic scaling
 
-### 4. Run locally
+Recipes can be scaled by target servings or from one ingredient on hand. The scale is temporary to the current cooking session and never edits the shared family recipe.
 
-```powershell
-python app\app.py
-```
+Example: if a recipe calls for 1 lb ground beef and you enter 0.5 lb on hand, the current view scales to 0.5× and adjusts every scalable ingredient and linked step quantity.
 
-Then open:
+Temperatures are never mathematically scaled. Cook time is not blindly multiplied either. Structured steps keep their actual temperature, time, and doneness guidance.
 
-`http://localhost:3000`
+## Cook Mode
 
-## Important repository hygiene
+Cook Mode is full screen and presents one step at a time with:
 
-Do **not** commit the live `C:\FamilyCookbook` directory wholesale.
+- Previous / Next navigation
+- progress
+- exact ingredients used in that step at the current scale
+- oven/pan temperature
+- time
+- doneness cue
+- tap-to-start timer
+- optional Screen Wake Lock
 
-The live install can contain:
+Screen Wake Lock asks supported browsers to keep the display awake. Browsers cannot directly set hardware screen brightness.
 
-- `config.json` with the Flask secret key
-- `data/cookbook.db` with users and family data
-- uploaded profile/recipe photos
-- backups
-- logs
+## Import Center
 
-Those paths are intentionally excluded in `.gitignore`.
+Supported sources:
 
-For development, use a separate clone and a disposable development database.
+- Recipe websites using Recipe JSON-LD
+- ChatGPT shared links beginning with `https://chatgpt.com/share/`
+- pasted recipe text
+- one or more recipe-card/cookbook photos
 
-## Source layout
+Every import is a draft for human review before saving. Original card images are retained as recipe sources.
 
-```text
-app/
-  app.py                 Flask application, routes, schema and migrations
-  static/
-    index.html           Main client UI
-    app.js               Client-side application logic
-    styles.css           UI styles and themes
-    sw.js                PWA service worker/cache behavior
-    manifest.webmanifest PWA manifest
-    *.svg                Branding/icons
+ChatGPT share-page parsing is best-effort because shared conversation pages are not a formal recipe API. If a shared page cannot be parsed cleanly, use Paste Text as the fallback.
 
-data/
-  seed_recipes.json      Initial recipe seed data
+## Categories
 
-scripts/windows/
-  run-server.ps1
-  server-status.ps1
-  SETUP-REMOTE-ACCESS.*
-  uninstall-server.ps1
+Primary categories are separate dimensions from equipment/tags:
 
-installer/windows/
-  INSTALLER.ps1          Full Windows installer code from the v3.2.x line
-  installer_helper.py    Installer DB/preflight helper
-  UPDATE.ps1             v3.2.2 update script
-  *.bat / LAUNCHER.ps1   Launchers
+- Main Dishes
+- Breakfast & Brunch
+- Sides
+- Appetizers & Snacks
+- Desserts
+- Drinks
+- Breads & Baking
+- Sauces & Condiments
 
-backup.py
-requirements.txt
-config.example.json
-VERSION
-```
+Existing `Dinner & Savory`, `Breakfast & Sides`, `Coffee & Drinks`, and `Frozen & Dessert` records are migrated without deleting recipes.
 
-## Current architectural notes
+## Pairings
 
-The project is intentionally simple and self-hosted, but it has grown quickly.
-The backend is currently concentrated in one large Flask module and the frontend
-uses compact vanilla JavaScript/CSS. A developer review should pay particular
-attention to modularization, tests, security boundaries, migration strategy,
-import parsing, and long-term maintainability.
+Main dishes can show recommended Side, Drink, and Dessert pairings from the family cookbook. Family-owned pairings can be pinned. The main recipe plus the displayed pairings can be added to a shopping list as one meal.
 
-See `docs/ARCHITECTURE.md` and `docs/DEVELOPER_REVIEW.md`.
+## Branding and dark mode
+
+The v3 working brand is **Table & Tale** with the tagline **Recipes worth remembering.**
+
+Admins can change the cookbook name, tagline, and accent color from the application. Each user can choose Light, Dark, or Follow Device appearance.

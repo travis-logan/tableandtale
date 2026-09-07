@@ -9,6 +9,7 @@ import secrets
 import shutil
 import sqlite3
 import time
+import threading
 import uuid
 import socket
 import subprocess
@@ -42,6 +43,13 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
+from ai_recipe import (
+    generate_recipe as ai_generate_recipe,
+    ollama_status as ai_ollama_status,
+    parse_ai_json,
+    normalize_ollama_url,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = Path(os.environ.get("COOKBOOK_DATA_DIR", ROOT / "data"))
 UPLOAD_DIR = Path(os.environ.get("COOKBOOK_UPLOAD_DIR", ROOT / "uploads"))
@@ -71,14 +79,19 @@ app.secret_key = os.environ.get("COOKBOOK_SECRET_KEY", CONFIG["secret_key"])
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
-    MAX_CONTENT_LENGTH=30 * 1024 * 1024,
+    MAX_CONTENT_LENGTH=100 * 1024 * 1024,
 )
 # Respect HTTPS information from Cloudflare/Tailscale reverse proxies.
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 LOGIN_ATTEMPTS: dict[str, list[float]] = {}
+AI_ATTEMPTS: dict[int, list[float]] = {}
+AI_GENERATION_LOCK = threading.Lock()
 ALLOWED_IMAGES = {"png", "jpg", "jpeg", "webp"}
-APP_VERSION = "3.2.2"
+ALLOWED_STORY_VIDEOS = {"mp4", "mov", "m4v", "webm"}
+MAX_STORY_IMAGE_BYTES = 15 * 1024 * 1024
+MAX_STORY_VIDEO_BYTES = 75 * 1024 * 1024
+APP_VERSION = "3.3.0-beta.4"
 SCHEMA_VERSION = 3
 
 def utcnow():
@@ -502,7 +515,11 @@ def migrate_schema(conn):
         'site_name':'Table & Tale',
         'tagline':'Recipes worth remembering.',
         'brand_accent':'#b85f3f',
-        'public_url':''
+        'public_url':'',
+        'ai_enabled':'0',
+        'ai_ollama_url':'http://127.0.0.1:11434',
+        'ai_text_model':'qwen3:8b',
+        'ai_timeout_seconds':'180'
     }
     for k,v in defaults.items():
         conn.execute("INSERT OR IGNORE INTO site_settings(key,value) VALUES(?,?)", (k,v))
@@ -999,10 +1016,41 @@ def upload_avatar():
     execute("UPDATE users SET avatar_path=? WHERE id=?",(rel,g.user['id']))
     return jsonify(ok=True,avatar_path=rel)
 
+def ai_settings_json():
+    try:
+        timeout=max(30,min(600,int(setting_get('ai_timeout_seconds','180') or 180)))
+    except Exception:
+        timeout=180
+    return {
+        'enabled': setting_get('ai_enabled','0')=='1',
+        'ollama_url': setting_get('ai_ollama_url','http://127.0.0.1:11434'),
+        'text_model': setting_get('ai_text_model','qwen3:8b'),
+        'timeout_seconds': timeout
+    }
+
+def too_many_ai_requests(uid):
+    now=time.time()
+    attempts=[t for t in AI_ATTEMPTS.get(uid,[]) if now-t<1800]
+    AI_ATTEMPTS[uid]=attempts
+    return len(attempts)>=12
+
+def record_ai_request(uid):
+    AI_ATTEMPTS.setdefault(uid,[]).append(time.time())
+
+@app.get("/api/ai/status")
+@login_required
+def ai_status():
+    cfg=ai_settings_json()
+    if not cfg['enabled']:
+        return jsonify(enabled=False,available=False,model=cfg['text_model'],message='Local AI is disabled by the family admin.')
+    status=ai_ollama_status(cfg['ollama_url'],cfg['text_model'],timeout=3)
+    return jsonify(enabled=True,model=cfg['text_model'],**status)
+
+
 @app.get("/api/admin/settings")
 @admin_required
 def admin_settings_get():
-    return jsonify(branding=branding_json(), sharing=sharing_json())
+    return jsonify(branding=branding_json(), sharing=sharing_json(), ai=ai_settings_json())
 
 @app.post("/api/admin/settings")
 @admin_required
@@ -1016,7 +1064,23 @@ def admin_settings_update():
             setting_set('public_url', normalize_public_url(body.get('public_url')))
         except ValueError as e:
             return jsonify(error=str(e)),400
-    return jsonify(ok=True,branding=branding_json(),sharing=sharing_json())
+    if 'ai_enabled' in body:
+        setting_set('ai_enabled','1' if bool(body.get('ai_enabled')) else '0')
+    if 'ai_ollama_url' in body:
+        try:
+            setting_set('ai_ollama_url',normalize_ollama_url(body.get('ai_ollama_url')))
+        except ValueError as e:
+            return jsonify(error=str(e)),400
+    if 'ai_text_model' in body:
+        model=(body.get('ai_text_model') or '').strip()
+        if not re.fullmatch(r'[A-Za-z0-9_.:/-]{1,120}',model):
+            return jsonify(error='Invalid Ollama model name'),400
+        setting_set('ai_text_model',model)
+    if 'ai_timeout_seconds' in body:
+        try: timeout=max(30,min(600,int(body.get('ai_timeout_seconds'))))
+        except Exception: return jsonify(error='AI timeout must be a number from 30 to 600 seconds'),400
+        setting_set('ai_timeout_seconds',str(timeout))
+    return jsonify(ok=True,branding=branding_json(),sharing=sharing_json(),ai=ai_settings_json())
 
 # ---------- Recipe queries ----------
 
@@ -1115,6 +1179,7 @@ def recipe_detail(rid):
         steps.append(sd)
     item['steps']=steps
     item['sources']=[dict(x) for x in db().execute("SELECT id,source_type,source_url,source_label,source_text,file_path,created_at FROM recipe_sources WHERE recipe_id=? ORDER BY id",(rid,)).fetchall()]
+    item['story_media']=[x for x in item['sources'] if (x.get('source_type') or '').startswith('story_')]
     note=db().execute("SELECT body FROM personal_recipe_notes WHERE recipe_id=? AND user_id=?",(rid,g.user['id'])).fetchone()
     item['my_note']=note['body'] if note else ''
     item['pairings']=get_pairings(rid)
@@ -1616,6 +1681,97 @@ def clear_checked(lid):
     execute("DELETE FROM shopping_items WHERE list_id=? AND checked=1",(lid,))
     return jsonify(ok=True)
 
+# ---------- Family story media ----------
+
+@app.post("/api/recipes/<int:rid>/story-media")
+@login_required
+def upload_story_media(rid):
+    recipe=db().execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
+    if not recipe or not can_edit_recipe(g.user,recipe):
+        return jsonify(error="Recipe not found or not editable"),404
+
+    files=request.files.getlist("media")
+    if not files:
+        return jsonify(error="Choose a story photo or video"),400
+    if len(files)>8:
+        return jsonify(error="Add up to 8 story photos/videos at a time"),400
+
+    folder=UPLOAD_DIR/"stories"/f"recipe-{rid}"
+    folder.mkdir(parents=True,exist_ok=True)
+    created=[]
+    errors=[]
+
+    for f in files:
+        if not f or not f.filename or "." not in f.filename:
+            continue
+        ext=f.filename.rsplit(".",1)[1].lower()
+        if ext in ALLOWED_IMAGES:
+            media_type="image"
+            max_bytes=MAX_STORY_IMAGE_BYTES
+        elif ext in ALLOWED_STORY_VIDEOS:
+            media_type="video"
+            max_bytes=MAX_STORY_VIDEO_BYTES
+        else:
+            errors.append(f"{f.filename}: unsupported file type")
+            continue
+
+        safe=secure_filename(Path(f.filename).stem)[:80] or "story"
+        name=f"{int(time.time()*1000)}-{secrets.token_hex(3)}-{safe}.{ext}"
+        dest=folder/name
+        try:
+            f.save(dest)
+            size=dest.stat().st_size
+            if size<=0 or size>max_bytes:
+                dest.unlink(missing_ok=True)
+                limit=max_bytes//(1024*1024)
+                errors.append(f"{f.filename}: file must be {limit} MB or smaller")
+                continue
+
+            if media_type=="image" and Image is not None:
+                try:
+                    with Image.open(dest) as im:
+                        im.verify()
+                except Exception:
+                    dest.unlink(missing_ok=True)
+                    errors.append(f"{f.filename}: not a valid image")
+                    continue
+
+            rel=dest.relative_to(UPLOAD_DIR).as_posix()
+            cur=execute(
+                """INSERT INTO recipe_sources
+                   (recipe_id,source_type,source_url,source_label,source_text,file_path,created_by,created_at)
+                   VALUES(?,?,?,?,?,?,?,?)""",
+                (rid,f"story_{media_type}",None,"Family story",None,rel,g.user["id"],utcnow())
+            )
+            created.append({"id":cur.lastrowid,"media_type":media_type,"file_path":rel})
+        except Exception:
+            try: dest.unlink(missing_ok=True)
+            except Exception: pass
+            errors.append(f"{f.filename}: upload failed")
+
+    if not created and errors:
+        return jsonify(error="; ".join(errors)),400
+    return jsonify(ok=True,created=created,warnings=errors)
+
+@app.delete("/api/recipes/<int:rid>/story-media/<int:sid>")
+@login_required
+def delete_story_media(rid,sid):
+    recipe=db().execute("SELECT * FROM recipes WHERE id=?",(rid,)).fetchone()
+    if not recipe or not can_edit_recipe(g.user,recipe):
+        return jsonify(error="Recipe not found or not editable"),404
+    row=db().execute(
+        "SELECT * FROM recipe_sources WHERE id=? AND recipe_id=? AND source_type IN ('story_image','story_video')",
+        (sid,rid)
+    ).fetchone()
+    if not row:
+        return jsonify(error="Story media not found"),404
+    if row["file_path"]:
+        try:(UPLOAD_DIR/row["file_path"]).unlink(missing_ok=True)
+        except Exception:pass
+    execute("DELETE FROM recipe_sources WHERE id=?",(sid,))
+    return jsonify(ok=True)
+
+
 # ---------- Images ----------
 
 @app.post("/api/recipes/<int:rid>/image")
@@ -1736,6 +1892,78 @@ def stage_import(user_id,source_type,source_url=None,source_label=None,source_te
     token=secrets.token_urlsafe(20)
     execute("INSERT INTO import_staging(token,user_id,source_type,source_url,source_label,source_text,source_files_json,created_at) VALUES(?,?,?,?,?,?,?,?)",(token,user_id,source_type,source_url,source_label,source_text,json.dumps(files or []),utcnow()))
     return token
+
+@app.post('/api/import-ai-json')
+@login_required
+def import_ai_json():
+    body=request.get_json(silent=True) or {}
+    raw=(body.get('text') or '').strip()
+    if not raw:
+        return jsonify(error='Paste Table & Tale recipe JSON first'),400
+
+    try:
+        draft,warnings=parse_ai_json(raw)
+    except ValueError as e:
+        return jsonify(error=str(e),error_type='validation'),400
+    except Exception as e:
+        app.logger.exception('AI JSON parse failed')
+        return jsonify(error=f'AI JSON import failed while validating the recipe: {e}',error_type='server'),500
+
+    # The preview should never fail merely because provenance staging is unavailable
+    # or the database is temporarily busy. Staging is best-effort here.
+    token=None
+    try:
+        token=stage_import(
+            g.user['id'],'ai_json',
+            source_label='AI recipe JSON',
+            source_text=raw[:100000]
+        )
+    except Exception:
+        app.logger.exception('AI JSON provenance staging failed; continuing without token')
+        warnings=list(warnings or []) + [
+            'The recipe loaded, but Table & Tale could not stage the original JSON as source provenance. Review and save normally.'
+        ]
+
+    return jsonify(ok=True,token=token,candidates=[draft],warnings=warnings)
+
+@app.post('/api/ai/generate-recipe')
+@login_required
+def ai_generate():
+    if g.user['role']=='guest':
+        return jsonify(error='AI recipe creation is currently available to Members and Admins during beta.'),403
+
+    cfg=ai_settings_json()
+    if not cfg['enabled']:
+        return jsonify(error='Local AI recipe creation is disabled. Ask the family admin to enable it.'),403
+    if too_many_ai_requests(g.user['id']):
+        return jsonify(error='AI beta limit reached. Try again later.'),429
+
+    body=request.get_json(silent=True) or {}
+    prompt=(body.get('prompt') or '').strip()
+    if not prompt:
+        return jsonify(error='Tell Table & Tale what you want to make.'),400
+
+    if not AI_GENERATION_LOCK.acquire(blocking=False):
+        return jsonify(error='The recipe AI is already creating another recipe. Try again when it finishes.'),429
+
+    record_ai_request(g.user['id'])
+    try:
+        draft,warnings,meta=ai_generate_recipe(
+            cfg['ollama_url'],cfg['text_model'],body,cfg['timeout_seconds']
+        )
+        token=stage_import(
+            g.user['id'],'ai_generated',
+            source_label=f"Local AI · {meta.get('model') or cfg['text_model']}",
+            source_text=prompt[:100000]
+        )
+        return jsonify(token=token,candidates=[draft],warnings=warnings,meta=meta)
+    except (ValueError,RuntimeError) as e:
+        return jsonify(error=str(e)),502
+    except Exception as e:
+        return jsonify(error=f'Local AI generation failed: {e}'),500
+    finally:
+        AI_GENERATION_LOCK.release()
+
 
 def find_tesseract():
     if pytesseract is None:return None

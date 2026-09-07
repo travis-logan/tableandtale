@@ -45,7 +45,7 @@
       <button class="primary widebtn">Create Account</button>
       <button type="button" class="linkbtn" id="showLogin">Back to sign in</button>
     </form>
-    <div class="app-version auth-version">Table & Tale <span data-app-version>v3.2.2</span></div>
+    <div class="app-version auth-version">Table & Tale <span data-app-version>3.3.0-beta.2</span></div>
   </div>
 </section>
 
@@ -83,69 +83,221 @@
 </section>
 
 <section id="addView" class="view">
-  <div class="page-head"><p class="eyebrow">ADD TO THE STORY</p><h1 id="recipeFormTitle">Add a recipe</h1><p id="publishHint">Preserve the recipe and make it easy for the next person to cook.</p></div>
-  <form id="recipeForm" class="panel recipe-form">
-    <section class="import-center">
-      <div class="section-head"><div><h2>Import a recipe</h2><span>Start from wherever the recipe already lives.</span></div><span id="importBadge" class="pill hidden"></span></div>
-      <div class="import-grid">
-        <div class="import-card"><strong>🌐 Recipe website</strong><div class="inline"><input id="websiteUrl" type="url" placeholder="https://example.com/recipe"><button type="button" class="secondary" data-import="website">Import</button></div></div>
-        <div class="import-card"><strong>✦ ChatGPT share link</strong><div class="inline"><input id="chatgptUrl" type="url" placeholder="https://chatgpt.com/share/…"><button type="button" class="secondary" data-import="chatgpt">Import</button></div></div>
-        <div class="import-card"><strong>📋 Paste recipe text</strong><textarea id="rawRecipeText" rows="3" placeholder="Paste the recipe here…"></textarea><button type="button" class="secondary" data-import="text">Parse Text</button></div>
-        <div class="import-card"><strong>📷 Recipe card or cookbook page</strong><input id="photoImport" type="file" accept="image/*" capture="environment" multiple><button type="button" class="secondary" data-import="photo">Read Photo</button><small>Front and back can be uploaded together. The originals are preserved.</small></div>
+  <div class="page-head">
+    <p class="eyebrow">ADD TO THE STORY</p>
+    <h1 id="recipeFormTitle">Add a recipe</h1>
+    <p id="publishHint">Choose how the recipe comes in. We’ll guide you through the rest.</p>
+  </div>
+
+  <form id="recipeForm" class="recipe-form wizard-form">
+    <nav class="recipe-wizard-progress" id="recipeWizardProgress" aria-label="Add recipe progress">
+      <span data-wizard-step="method"><b>1</b> Method</span>
+      <i></i>
+      <span data-wizard-step="source"><b>2</b> Add</span>
+      <i></i>
+      <span data-wizard-step="review"><b>3</b> Review</span>
+      <i></i>
+      <span data-wizard-step="story"><b>4</b> Story</span>
+    </nav>
+
+    <section id="addMethodStage" class="wizard-stage panel">
+      <div class="wizard-stage-head">
+        <p class="eyebrow">STEP 1</p>
+        <h2>How do you want to add this recipe?</h2>
+        <p>Pick one starting point. You’ll only see the tools you need.</p>
       </div>
-      <div id="importStatus" class="muted"></div>
+      <div class="add-method-grid">
+        <button type="button" class="add-method-card featured" data-add-method="ai">
+          <span class="method-icon">✨</span><strong>Create with AI</strong>
+          <small>Describe what you want to eat and let your local recipe chef build it.</small>
+        </button>
+        <button type="button" class="add-method-card" data-add-method="photo">
+          <span class="method-icon">📷</span><strong>Scan a Recipe</strong>
+          <small>Photograph a recipe card or cookbook page. Front and back are welcome.</small>
+        </button>
+        <button type="button" class="add-method-card" data-add-method="text">
+          <span class="method-icon">📋</span><strong>Paste Recipe</strong>
+          <small>Paste a recipe from a message, note, document, or anywhere else.</small>
+        </button>
+        <button type="button" class="add-method-card" data-add-method="chatgpt">
+          <span class="method-icon">💬</span><strong>From ChatGPT</strong>
+          <small>Paste a ChatGPT shared-conversation link.</small>
+        </button>
+        <button type="button" class="add-method-card" data-add-method="aijson">
+          <span class="method-icon">🤖</span><strong>AI Recipe JSON</strong>
+          <small>Import output created with the Table & Tale Recipe Authoring Skill.</small>
+        </button>
+        <button type="button" class="add-method-card" data-add-method="manual">
+          <span class="method-icon">✍️</span><strong>Enter Manually</strong>
+          <small>Start with a blank structured recipe.</small>
+        </button>
+        <button type="button" class="add-method-card" data-add-method="website">
+          <span class="method-icon">🌐</span><strong>From a Website</strong>
+          <small>Paste a recipe-page URL and import its structured recipe data.</small>
+        </button>
+      </div>
+    </section>
+
+    <section id="addSourceStage" class="wizard-stage panel hidden">
+      <div class="wizard-stage-topline">
+        <button type="button" class="ghost wizard-back" id="sourceBackBtn">← Methods</button>
+        <span class="pill" id="selectedMethodBadge"></span>
+      </div>
+
+      <div id="sourcePanel-ai" class="source-method-panel hidden">
+        <div class="wizard-stage-head"><p class="eyebrow">CREATE WITH AI</p><h2>What sounds good?</h2><p>Talk to it like you would a cooking assistant.</p></div>
+        <p id="aiStatus" class="muted">Checking local AI…</p>
+        <label>Describe the recipe
+          <textarea id="aiPrompt" rows="5" placeholder="I have chicken thighs, jasmine rice and broccoli. Make something bold and a little spicy for 4 people in under 45 minutes."></textarea>
+        </label>
+        <div class="ai-options-grid">
+          <label>Servings<input id="aiServings" type="number" step="1" min="1" value="4"></label>
+          <label>Max total minutes<input id="aiMaxTime" type="number" step="5" min="5" placeholder="45"></label>
+          <label>Category<select id="aiCategory"><option value="">Let AI choose</option><option>Main Dishes</option><option>Breakfast & Brunch</option><option>Sides</option><option>Appetizers & Snacks</option><option>Desserts</option><option>Drinks</option><option>Breads & Baking</option><option>Sauces & Condiments</option></select></label>
+          <label>Cuisine/style<input id="aiCuisine" placeholder="Thai, Southern, Italian…"></label>
+          <label>Spice<select id="aiSpice"><option value="">Any</option><option>Mild</option><option>Medium</option><option>Spicy</option><option>Very spicy</option></select></label>
+          <label>Equipment<input id="aiEquipment" placeholder="Skillet, Instant Pot…"></label>
+          <label class="span2">Ingredients I want to use<input id="aiUseIngredients" placeholder="1.5 lb chicken thighs, broccoli, jasmine rice"></label>
+          <label class="span2">Avoid / dietary constraints<input id="aiAvoidIngredients" placeholder="No mushrooms, gluten-free, no red meat…"></label>
+        </div>
+        <div class="wizard-source-action">
+          <span id="aiGenerateStatus" class="muted"></span>
+          <button type="button" class="primary" id="generateAIRecipe">Generate Recipe →</button>
+        </div>
+      </div>
+
+      <div id="sourcePanel-photo" class="source-method-panel hidden">
+        <div class="wizard-stage-head"><p class="eyebrow">SCAN A RECIPE</p><h2>Photograph the original</h2><p>Upload the front, back, or multiple cookbook pages. We’ll keep the originals with the recipe.</p></div>
+        <div class="skill-download-callout">
+          <div><strong>Hard-to-read handwriting?</strong><p>For old cursive cards, faded ink, family notes, or complicated layouts, ChatGPT with the Table &amp; Tale Recipe Card Archivist Skill will usually be more accurate than the quick local scan.</p></div>
+          <a class="secondary button-link" href="/downloads/Table_and_Tale_Recipe_Card_Archivist_Skill.zip" download>Download ChatGPT Recipe Card Skill</a>
+        </div>
+        <div class="drop-style-field"><span class="method-icon">📷</span><input id="photoImport" type="file" accept="image/*" capture="environment" multiple><small>Use clear, straight-on photos when possible.</small></div>
+        <div class="wizard-source-action"><span id="photoHelp" class="muted">You’ll review the transcription before anything is saved.</span><button type="button" class="primary" data-import="photo">Read Photo →</button></div>
+      </div>
+
+      <div id="sourcePanel-text" class="source-method-panel hidden">
+        <div class="wizard-stage-head"><p class="eyebrow">PASTE RECIPE</p><h2>Paste what you have</h2><p>It does not need to be perfectly formatted.</p></div>
+        <textarea id="rawRecipeText" rows="12" placeholder="Paste recipe text here…"></textarea>
+        <div class="wizard-source-action"><span></span><button type="button" class="primary" data-import="text">Parse Recipe →</button></div>
+      </div>
+
+      <div id="sourcePanel-chatgpt" class="source-method-panel hidden">
+        <div class="wizard-stage-head"><p class="eyebrow">FROM CHATGPT</p><h2>Paste the shared conversation link</h2><p>We’ll look for recipe content and let you choose what to import.</p></div>
+        <label>ChatGPT share URL<input id="chatgptUrl" type="url" placeholder="https://chatgpt.com/share/…"></label>
+        <div class="wizard-source-action"><span></span><button type="button" class="primary" data-import="chatgpt">Import from ChatGPT →</button></div>
+      </div>
+
+      <div id="sourcePanel-aijson" class="source-method-panel hidden">
+        <div class="wizard-stage-head"><p class="eyebrow">AI RECIPE JSON</p><h2>Paste Table & Tale recipe JSON</h2><p>Use either Table &amp; Tale AI skill to create perfectly mapped ingredients and steps.</p></div>
+        <div class="skill-mini-links">
+          <a href="/downloads/Table_and_Tale_Recipe_Card_Archivist_Skill.zip" download>Recipe Card Archivist Skill</a>
+          <span>·</span>
+          <a href="/downloads/Table_and_Tale_Recipe_Card_Archivist_SKILL.md" download>Raw SKILL.md</a>
+          <span>·</span>
+          <a href="/downloads/table-and-tale-recipe.schema.json" download>JSON Schema</a>
+        </div>
+        <textarea id="aiRecipeJson" rows="12" placeholder='{ "title": "...", "ingredients": [...], "steps": [...] }'></textarea>
+        <div class="json-file-import">
+          <label class="secondary button-link">Choose .json file<input id="aiRecipeJsonFile" type="file" accept=".json,application/json" hidden></label>
+          <span id="aiJsonFileStatus" class="muted">Or paste JSON above.</span>
+        </div>
+        <div class="wizard-source-action"><span></span><button type="button" class="primary" data-import="aijson">Validate & Import →</button></div>
+      </div>
+
+      <div id="sourcePanel-website" class="source-method-panel hidden">
+        <div class="wizard-stage-head"><p class="eyebrow">FROM A WEBSITE</p><h2>Paste the recipe page</h2><p>Works best with sites that publish standard recipe data.</p></div>
+        <label>Recipe URL<input id="websiteUrl" type="url" placeholder="https://example.com/recipe"></label>
+        <div class="wizard-source-action"><span></span><button type="button" class="primary" data-import="website">Import Website →</button></div>
+      </div>
+
+      <div id="importStatus" class="muted import-status"></div>
       <div id="importCandidates" class="candidate-grid hidden"></div>
     </section>
 
-    <section class="form-section">
-      <div class="section-head"><div><h2>Recipe basics</h2><span>Servings are the anchor for one-click scaling.</span></div></div>
-      <div class="form-grid">
-        <label class="span2">Recipe name<input name="title" required></label>
-        <label>Category<select name="category" id="categorySelect"></select></label>
-        <label>Subcategory<input name="subcategory" placeholder="Pasta, soup, cookies…"></label>
-        <label>Cuisine<input name="cuisine" placeholder="Italian, Thai, Southern…"></label>
-        <label>Equipment<input name="equipment" placeholder="Skillet, Instant Pot…"></label>
-        <label>Serves<input name="servings_base" type="number" step="0.25" min="0" placeholder="4"></label>
-        <label>Serving label<input name="servings_label" placeholder="4 people / 12 cookies"></label>
-        <label>Prep time<input name="prep_text" placeholder="15 min"></label>
-        <label>Cook time<input name="cook_text" placeholder="30 min"></label>
-        <label>Total time<input name="total_text" placeholder="45 min"></label>
-        <label>Visibility<select name="visibility"><option value="family">Family cookbook</option><option value="private">Private to me</option></select></label>
-        <label class="span2">Description<textarea name="description" rows="2" placeholder="A quick description of the dish."></textarea></label>
-        <label class="span2">Finished-dish photo<input name="cover_image" type="file" accept="image/png,image/jpeg,image/webp"></label>
+    <section id="addReviewStage" class="wizard-stage hidden">
+      <div class="panel review-intro">
+        <div class="wizard-stage-topline">
+          <button type="button" class="ghost wizard-back" id="reviewBackBtn">← Back</button>
+          <span id="importBadge" class="pill hidden"></span>
+        </div>
+        <div class="wizard-stage-head"><p class="eyebrow">STEP 3</p><h2>Review the recipe</h2><p>Make sure the ingredients, amounts, servings, times, temperatures, and directions are exactly how you want them.</p></div>
+      </div>
+
+      <section class="panel form-section">
+        <div class="section-head"><div><h2>Recipe basics</h2><span>Servings are the anchor for one-click scaling.</span></div></div>
+        <div class="form-grid">
+          <label class="span2">Recipe name<input name="title" required></label>
+          <label>Category<select name="category" id="categorySelect"></select></label>
+          <label>Subcategory<input name="subcategory" placeholder="Pasta, soup, cookies…"></label>
+          <label>Cuisine<input name="cuisine" placeholder="Italian, Thai, Southern…"></label>
+          <label>Equipment<input name="equipment" placeholder="Skillet, Instant Pot…"></label>
+          <label>Serves<input name="servings_base" type="number" step="0.25" min="0" placeholder="4"></label>
+          <label>Serving label<input name="servings_label" placeholder="4 people / 12 cookies"></label>
+          <label>Prep time<input name="prep_text" placeholder="15 min"></label>
+          <label>Cook time<input name="cook_text" placeholder="30 min"></label>
+          <label>Total time<input name="total_text" placeholder="45 min"></label>
+          <label>Visibility<select name="visibility"><option value="family">Family cookbook</option><option value="private">Private to me</option></select></label>
+          <label class="span2">Description<textarea name="description" rows="2" placeholder="A quick description of the dish."></textarea></label>
+          <label class="span2">Finished-dish photo<input name="cover_image" type="file" accept="image/png,image/jpeg,image/webp"></label>
+          <label class="span2">Variation of<select name="parent_recipe_id" id="parentRecipeSelect"><option value="">Not a variation</option></select></label>
+        </div>
+      </section>
+
+      <section class="panel form-section ingredient-builder">
+        <div class="section-head"><div><h2>Ingredients</h2><span>Use numeric quantities whenever possible so scaling and shopping lists work correctly.</span></div><button type="button" class="ghost" id="addIngredient">＋ Ingredient</button></div>
+        <div class="ingredient-head"><span>Qty</span><span>Unit</span><span>Ingredient</span><span>Prep</span><span>Aisle</span><span></span></div>
+        <div id="ingredientRows"></div>
+      </section>
+
+      <section class="panel form-section step-builder">
+        <div class="section-head"><div><h2>Step-by-step directions</h2><span>Each step should say exactly how much to use, how hot, and how long.</span></div><button type="button" class="ghost" id="addStep">＋ Step</button></div>
+        <div id="stepRows"></div>
+      </section>
+
+      <section class="panel form-section">
+        <div class="form-grid">
+          <label class="span2">General notes<textarea name="notes" rows="3" placeholder="Substitutions, make-ahead notes, storage, etc."></textarea></label>
+          <label class="span2">Tags<input name="tags" placeholder="spicy weeknight comfort-food cast-iron"></label>
+        </div>
+      </section>
+
+      <div class="wizard-footer">
+        <button type="button" class="ghost" id="cancelRecipe">Cancel</button>
+        <button type="button" class="primary" id="continueToStory">Looks Good — Add the Story →</button>
       </div>
     </section>
 
-    <section class="form-section story-panel">
-      <div class="section-head"><div><h2>Family history</h2><span>Who made it first matters as much as who uploaded it.</span></div></div>
-      <div class="form-grid">
+    <section id="addStoryStage" class="wizard-stage panel hidden">
+      <div class="wizard-stage-topline"><button type="button" class="ghost wizard-back" id="storyBackBtn">← Review Recipe</button><span class="pill">Final step</span></div>
+      <div class="story-finale">
+        <div class="story-finale-icon">♥</div>
+        <p class="eyebrow">STEP 4</p>
+        <h2>What’s the story behind it?</h2>
+        <p>The recipe tells us how to make the food. This is where you preserve why the recipe matters. Everything here is optional.</p>
+      </div>
+
+      <div class="form-grid story-fields">
         <label>Original recipe by<input name="original_author" placeholder="Grandma Logan"></label>
         <label>Approx. year<input name="approx_year" placeholder="1974 / 1990s"></label>
         <label>Family branch<input name="family_branch" placeholder="Logan family"></label>
         <label>Occasion<input name="occasion" placeholder="Christmas Eve, Sunday dinner…"></label>
-        <label class="span2">Story & history<textarea name="family_story" rows="4" placeholder="Where did this recipe come from? What do you remember about it?"></textarea></label>
-        <label class="span2">Variation of<select name="parent_recipe_id" id="parentRecipeSelect"><option value="">Not a variation</option></select></label>
+        <label class="span2">Tell the story<textarea name="family_story" rows="7" placeholder="Where did this recipe come from? Who made it? What does your family remember about it?"></textarea></label>
+      </div>
+
+      <div class="story-media-box">
+        <div><strong>Add photos or a video</strong><p class="muted">A photo of the person who made it, a family dinner, or even a short video telling the story.</p></div>
+        <input id="storyMedia" type="file" accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm,video/x-m4v" multiple>
+        <small>Up to 8 files at once. Images up to 15 MB each. Videos up to 75 MB each. MP4 has the best cross-device compatibility.</small>
+        <div id="existingStoryMedia" class="story-media-preview"></div>
+        <div id="storyUploadStatus" class="muted"></div>
+      </div>
+
+      <div class="wizard-footer">
+        <button type="button" class="ghost" id="skipStoryHint">Story is optional</button>
+        <button type="submit" class="primary" id="finishRecipeBtn">Save Recipe & Finish ✓</button>
       </div>
     </section>
-
-    <section class="form-section ingredient-builder">
-      <div class="section-head"><div><h2>Ingredients</h2><span>Use numeric quantities whenever possible so scaling and shopping lists work correctly.</span></div><button type="button" class="ghost" id="addIngredient">＋ Ingredient</button></div>
-      <div class="ingredient-head"><span>Qty</span><span>Unit</span><span>Ingredient</span><span>Prep</span><span>Aisle</span><span></span></div>
-      <div id="ingredientRows"></div>
-    </section>
-
-    <section class="form-section step-builder">
-      <div class="section-head"><div><h2>Step-by-step directions</h2><span>Link the ingredients used in each step so scaled amounts stay correct inside the directions.</span></div><button type="button" class="ghost" id="addStep">＋ Step</button></div>
-      <div id="stepRows"></div>
-    </section>
-
-    <section class="form-section">
-      <div class="form-grid">
-        <label class="span2">General notes<textarea name="notes" rows="3" placeholder="Substitutions, make-ahead notes, etc."></textarea></label>
-        <label class="span2">Tags<input name="tags" placeholder="spicy weeknight comfort-food cast-iron"></label>
-      </div>
-    </section>
-    <div class="form-actions"><button type="button" class="ghost" id="cancelRecipe">Cancel</button><button class="primary">Save Recipe</button></div>
   </form>
 </section>
 
@@ -162,6 +314,17 @@
   <div class="admin-grid">
     <section class="panel"><h2>Branding</h2><form id="brandingForm" class="stack"><label>Cookbook name<input name="site_name"></label><label>Tagline<input name="tagline"></label><label>Accent color<input name="brand_accent" type="color"></label><button class="primary">Save Branding</button></form><p class="muted">The current “Table & Tale” identity is a working brand and can be changed here without reinstalling.</p></section>
     <section class="panel"><h2>Public Sharing</h2><p id="publicUrlStatus" class="muted">Checking public access…</p><form id="sharingForm" class="stack"><label>Public cookbook URL<input name="public_url" type="url" placeholder="https://your-cookbook.your-tailnet.ts.net"></label><button class="secondary">Save Public URL</button></form><p class="muted">Invite links use this address even when you create them from localhost. Leave it blank to let Table & Tale try to detect a Tailscale Funnel automatically.</p></section>
+    <section class="panel"><h2>Local AI <span class="pill">Beta</span></h2>
+      <p id="aiAdminStatus" class="muted">Checking Ollama…</p>
+      <form id="aiSettingsForm" class="stack">
+        <label class="checkline"><input name="ai_enabled" type="checkbox"> Enable Create with AI</label>
+        <label>Ollama URL<input name="ai_ollama_url" value="http://127.0.0.1:11434"></label>
+        <label>Recipe model<input name="ai_text_model" value="qwen3:8b"></label>
+        <label>Generation timeout (seconds)<input name="ai_timeout_seconds" type="number" min="30" max="600" value="180"></label>
+        <div class="inline"><button class="primary">Save AI Settings</button><button type="button" class="secondary" id="testAIButton">Test AI</button></div>
+      </form>
+      <p class="muted">Beta security restriction: Ollama must run on this same PC. Port 11434 is never exposed through Table & Tale or your public tunnel.</p>
+    </section>
     <section class="panel"><h2>Invite someone</h2><form id="inviteForm" class="stack"><label>Name/label<input name="label" placeholder="Mom, David, Katie…"></label><label>Access<select name="role"><option value="member">Member — publishes directly</option><option value="guest">Guest — requires approval</option></select></label><label>Expires in<select name="days"><option value="7">7 days</option><option value="14" selected>14 days</option><option value="30">30 days</option></select></label><button class="primary">Create Invite</button></form><div id="inviteResult" class="invite-result hidden"></div></section>
     <section class="panel"><div class="section-head"><div><h2>Pending recipes</h2><span>Guest submissions waiting for review.</span></div></div><div id="pendingList"></div></section>
     <section class="panel"><div class="section-head"><div><h2>Members</h2><span>Manage family access.</span></div></div><div id="adminMembers"></div></section>
@@ -177,7 +340,7 @@
 <dialog id="recipeDialog" class="big-dialog"><div id="recipeDetail"></div></dialog>
 <dialog id="cookDialog" class="cook-dialog"><div id="cookMode"></div></dialog>
 <dialog id="pantryDialog" class="medium-dialog"><div class="dialog-head"><div><p class="eyebrow">PANTRY MATCH</p><h2>What can I make?</h2></div><button class="circle" data-close="pantryDialog">×</button></div><div class="dialog-body"><p>Enter ingredients you already have. Recipes are ranked by how much you can cover.</p><form id="pantryForm" class="inline"><input id="pantryInput" placeholder="chicken, rice, garlic, cream cheese"><button class="primary">Find Recipes</button></form><div id="pantryResults"></div></div></dialog>
-<dialog id="accountDialog" class="small-dialog"><div class="dialog-body account-menu"><div id="accountAvatar" class="avatar avatar-xl"></div><h3 id="accountName"></h3><p id="accountRole"></p><button class="ghost widebtn" data-nav="profile">My Profile</button><button class="ghost widebtn hidden" id="adminNav" data-nav="admin">Admin</button><button class="danger widebtn" id="logoutBtn">Sign Out</button><div class="app-version account-version">Table & Tale <span data-app-version>v3.2.2</span></div></div></dialog>
+<dialog id="accountDialog" class="small-dialog"><div class="dialog-body account-menu"><div id="accountAvatar" class="avatar avatar-xl"></div><h3 id="accountName"></h3><p id="accountRole"></p><button class="ghost widebtn" data-nav="profile">My Profile</button><button class="ghost widebtn hidden" id="adminNav" data-nav="admin">Admin</button><button class="danger widebtn" id="logoutBtn">Sign Out</button><div class="app-version account-version">Table & Tale <span data-app-version>3.3.0-beta.2</span></div></div></dialog>
 <dialog id="addToListDialog" class="small-dialog"><div class="dialog-body"><h3 id="listDialogTitle">Add ingredients to list</h3><select id="targetList"></select><label>Scale to servings<input id="targetServings" type="number" step="0.25" min="0.25"></label><label class="check"><input id="skipOptional" type="checkbox"> Skip optional ingredients</label><button class="primary widebtn" id="confirmAddToList">Add to Shopping List</button></div></dialog>
 <script src="/app.js?v=3.2.2"></script>
 </body>

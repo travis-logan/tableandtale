@@ -1,0 +1,217 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Main Dishes",
+        "Breakfast & Brunch",
+        "Sides",
+        "Appetizers & Snacks",
+        "Desserts",
+        "Drinks",
+        "Breads & Baking",
+        "Sauces & Condiments"
+      ]
+    },
+    "subcategory": {
+      "type": "string"
+    },
+    "cuisine": {
+      "type": "string"
+    },
+    "equipment": {
+      "type": "string"
+    },
+    "servings_base": {
+      "type": "number",
+      "minimum": 0.25
+    },
+    "servings_label": {
+      "type": "string"
+    },
+    "prep_text": {
+      "type": "string"
+    },
+    "cook_text": {
+      "type": "string"
+    },
+    "total_text": {
+      "type": "string"
+    },
+    "visibility": {
+      "type": "string",
+      "enum": [
+        "family",
+        "private"
+      ]
+    },
+    "original_author": {
+      "type": "string"
+    },
+    "approx_year": {
+      "type": "string"
+    },
+    "family_branch": {
+      "type": "string"
+    },
+    "occasion": {
+      "type": "string"
+    },
+    "family_story": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "string"
+    },
+    "ingredients": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "quantity_num": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "quantity_text": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "ingredient": {
+            "type": "string"
+          },
+          "prep_note": {
+            "type": "string"
+          },
+          "aisle": {
+            "type": "string"
+          },
+          "optional": {
+            "type": "boolean"
+          },
+          "scalable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "quantity_num",
+          "quantity_text",
+          "unit",
+          "ingredient",
+          "prep_note",
+          "aisle",
+          "optional",
+          "scalable"
+        ]
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "instruction": {
+            "type": "string"
+          },
+          "temp_f": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "duration_minutes": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "timer_label": {
+            "type": "string"
+          },
+          "doneness": {
+            "type": "string"
+          },
+          "ingredients": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "ingredient_index": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "quantity_fraction": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 1
+                },
+                "note": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ingredient_index",
+                "quantity_fraction",
+                "note"
+              ]
+            }
+          }
+        },
+        "required": [
+          "title",
+          "instruction",
+          "temp_f",
+          "duration_minutes",
+          "timer_label",
+          "doneness",
+          "ingredients"
+        ]
+      }
+    }
+  },
+  "required": [
+    "title",
+    "description",
+    "category",
+    "subcategory",
+    "cuisine",
+    "equipment",
+    "servings_base",
+    "servings_label",
+    "prep_text",
+    "cook_text",
+    "total_text",
+    "visibility",
+    "original_author",
+    "approx_year",
+    "family_branch",
+    "occasion",
+    "family_story",
+    "notes",
+    "tags",
+    "ingredients",
+    "steps"
+  ]
+}
