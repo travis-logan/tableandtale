@@ -38,3 +38,4 @@ Thumbs.db
 dist/
 build/
 *.zip
+!app/static/downloads/*_Skill.zip

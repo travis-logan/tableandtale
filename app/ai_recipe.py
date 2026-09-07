@@ -299,9 +299,29 @@ def _strip_json_comments_and_trailing_commas(raw: str) -> str:
             continue
         out.append(ch)
         i+=1
+    # Remove trailing commas only outside strings. A regex also changes recipe
+    # prose such as "stir, }" when another formatting error triggers cleanup.
     cleaned="".join(out)
-    cleaned=re.sub(r",\s*([}\]])",r"\1",cleaned)
-    return cleaned
+    out=[]
+    in_string=False
+    escaped=False
+    for i,ch in enumerate(cleaned):
+        if in_string:
+            out.append(ch)
+            if escaped:
+                escaped=False
+            elif ch=='\\':
+                escaped=True
+            elif ch=='"':
+                in_string=False
+        elif ch=='"':
+            in_string=True
+            out.append(ch)
+        elif ch==',' and cleaned[i+1:].lstrip().startswith(('}',']')):
+            continue
+        else:
+            out.append(ch)
+    return ''.join(out)
 
 
 def _extract_json_candidate(raw: str) -> str:
@@ -328,28 +348,49 @@ def _extract_json_candidate(raw: str) -> str:
     return raw.strip()
 
 
-def _loads_ai_json(raw: str):
-    candidate=_extract_json_candidate(raw)
+def _loads_ai_json(raw: str, warnings=None):
+    warnings=warnings if warnings is not None else []
+    # Decode serialized JSON strings before extracting braces from their content.
+    original=(raw or '').lstrip('\ufeff').strip()
+    try:
+        decoded=json.loads(original)
+    except json.JSONDecodeError:
+        pass
+    else:
+        if not isinstance(decoded,str):
+            return decoded
+        original=decoded
+    candidate=_extract_json_candidate(original)
     attempts=[candidate]
     cleaned=_strip_json_comments_and_trailing_commas(candidate)
     if cleaned!=candidate:
         attempts.append(cleaned)
 
-    last_error=None
-    for attempt in attempts:
+    first_error=None
+    for index,attempt in enumerate(attempts):
         try:
             data=json.loads(attempt)
             # Sometimes an AI returns a JSON string containing JSON.
             if isinstance(data,str) and data.strip().startswith(("{","[")):
                 data=json.loads(data)
+            if index:
+                warnings.append('Removed comments or trailing commas from the pasted JSON. Review the imported recipe before saving.')
             return data
-        except Exception as e:
-            last_error=e
-    raise ValueError(f"That is not valid Table & Tale recipe JSON: {last_error}") from last_error
+        except json.JSONDecodeError as e:
+            if first_error is None:
+                first_error=e
+    location=f'line {first_error.lineno}, column {first_error.colno}'
+    raise ValueError(
+        f'That is not valid Table & Tale recipe JSON at {location}: {first_error.msg}. '
+        'Copy using the Copy button on the JSON code block, or choose the original .json file. '
+        'Quotation marks inside notes or instructions must be escaped as \\" and paragraph breaks as \\n. '
+        'Ask the recipe skill to regenerate valid JSON if it still fails; no recipe was imported.'
+    ) from first_error
 
 
 def parse_ai_json(text: str):
-    data=_loads_ai_json(text)
+    formatting_warnings=[]
+    data=_loads_ai_json(text,formatting_warnings)
 
     # Accept a one-item array or common wrapper shapes.
     if isinstance(data,list):
@@ -363,7 +404,8 @@ def parse_ai_json(text: str):
                 data=wrapped
                 break
 
-    return validate_recipe_draft(data)
+    draft,warnings=validate_recipe_draft(data)
+    return draft,formatting_warnings+warnings
 
 
 def _alias(data: dict, *names, default=None):

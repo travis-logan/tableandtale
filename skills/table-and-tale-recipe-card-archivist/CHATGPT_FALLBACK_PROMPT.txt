@@ -13,9 +13,9 @@ Use the attached Table & Tale Recipe Card Archivist instructions and schema.
 Analyze all recipe images together. Preserve the original recipe conservatively.
 Do not invent missing quantities, times, temperatures, servings, or family history.
 Ask me concise clarification questions for any critical ambiguity before finalizing.
-When everything is resolved, output only Table & Tale-compatible JSON.
+When everything is resolved, output one Table & Tale-compatible JSON object in a fenced json code block. Escape quotes inside strings as \" and paragraph breaks as \n. When file tools are available, serialize and parse-check the JSON and also provide a .json download. Follow the attached skill and schema.
 
-3. Copy the final JSON.
+3. Use the JSON code block's Copy button, or download the .json file.
 
 4. In Table & Tale:
    Add Recipe -> AI Recipe JSON -> Validate & Import

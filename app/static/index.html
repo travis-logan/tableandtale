@@ -7,10 +7,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Table & Tale</title>
-<link rel="manifest" href="/manifest.webmanifest?v=3.2.2">
+<link rel="manifest" href="/manifest.webmanifest?v=3.3.0-beta.4%2Bjson.1">
 <link rel="icon" href="/brand-mark.svg">
 <link rel="apple-touch-icon" href="/brand-mark.svg">
-<link rel="stylesheet" href="/styles.css?v=3.2.2">
+<link rel="stylesheet" href="/styles.css?v=3.3.0-beta.4%2Bjson.1">
 </head>
 <body>
 <div id="toast" class="toast"></div>
@@ -200,7 +200,7 @@
         <textarea id="aiRecipeJson" rows="12" placeholder='{ "title": "...", "ingredients": [...], "steps": [...] }'></textarea>
         <div class="json-file-import">
           <label class="secondary button-link">Choose .json file<input id="aiRecipeJsonFile" type="file" accept=".json,application/json" hidden></label>
-          <span id="aiJsonFileStatus" class="muted">Or paste JSON above.</span>
+          <span id="aiJsonFileStatus" class="muted">Use the JSON code block’s Copy button in ChatGPT, or choose its downloaded .json file. Keep backslashes before quotes and paragraph breaks.</span>
         </div>
         <div class="wizard-source-action"><span></span><button type="button" class="primary" data-import="aijson">Validate & Import →</button></div>
       </div>
@@ -342,6 +342,6 @@
 <dialog id="pantryDialog" class="medium-dialog"><div class="dialog-head"><div><p class="eyebrow">PANTRY MATCH</p><h2>What can I make?</h2></div><button class="circle" data-close="pantryDialog">×</button></div><div class="dialog-body"><p>Enter ingredients you already have. Recipes are ranked by how much you can cover.</p><form id="pantryForm" class="inline"><input id="pantryInput" placeholder="chicken, rice, garlic, cream cheese"><button class="primary">Find Recipes</button></form><div id="pantryResults"></div></div></dialog>
 <dialog id="accountDialog" class="small-dialog"><div class="dialog-body account-menu"><div id="accountAvatar" class="avatar avatar-xl"></div><h3 id="accountName"></h3><p id="accountRole"></p><button class="ghost widebtn" data-nav="profile">My Profile</button><button class="ghost widebtn hidden" id="adminNav" data-nav="admin">Admin</button><button class="danger widebtn" id="logoutBtn">Sign Out</button><div class="app-version account-version">Table & Tale <span data-app-version>3.3.0-beta.2</span></div></div></dialog>
 <dialog id="addToListDialog" class="small-dialog"><div class="dialog-body"><h3 id="listDialogTitle">Add ingredients to list</h3><select id="targetList"></select><label>Scale to servings<input id="targetServings" type="number" step="0.25" min="0.25"></label><label class="check"><input id="skipOptional" type="checkbox"> Skip optional ingredients</label><button class="primary widebtn" id="confirmAddToList">Add to Shopping List</button></div></dialog>
-<script src="/app.js?v=3.2.2"></script>
+<script src="/app.js?v=3.3.0-beta.4%2Bjson.1"></script>
 </body>
 </html>

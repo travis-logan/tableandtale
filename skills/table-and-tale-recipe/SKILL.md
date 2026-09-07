@@ -1,3 +1,8 @@
+---
+name: table-and-tale-recipe
+description: Create structured recipes for import into Table & Tale, including scaled ingredients and linked cooking steps.
+---
+
 # Table & Tale Recipe Authoring Skill
 
 ## Purpose
@@ -10,10 +15,21 @@ links, temperatures, timers, and doneness cues.
 
 ## Output contract
 
-Return **only JSON** when the user asks for "Table & Tale format", "Table & Tale JSON",
+Return **one JSON object in a fenced `json` code block** when the user asks for "Table & Tale format", "Table & Tale JSON",
 or asks for a recipe intended to be imported into Table & Tale.
 
-Do not wrap the JSON in a Markdown code fence.
+Use the code block so the user can use its Copy button without copying rendered prose.
+Do not add commentary inside the code block. If the user explicitly requests raw JSON,
+return raw JSON instead.
+
+Escape quotation marks inside strings as `\"`, backslashes as `\\`, and paragraph
+breaks as `\n`. Do not use literal newlines within strings, smart quotes as JSON
+delimiters, comments, or trailing commas. Preserve quoted recipe and family text.
+
+When file-generation tools are available, serialize the recipe with a JSON library,
+parse the exact generated content to verify syntax, check it against the included
+schema, and provide a UTF-8 `.json` download as well. Never claim validation ran if
+it did not. The code block and file must contain the same recipe.
 
 The canonical schema is stored beside this skill as:
 

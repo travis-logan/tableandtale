@@ -393,11 +393,21 @@ Do not bury uncertainty inside normal prose.
 
 ### Step 9: Output final Table & Tale JSON
 
-When the user asks to finalize/export/import the recipe, return **only one JSON object**
+When the user asks to finalize/export/import the recipe, return **one JSON object**
 matching `table-and-tale-recipe.schema.json`.
 
-Do not wrap the JSON in Markdown.
-Do not add commentary before or after it.
+Put the object in a fenced `json` code block so the user can use its Copy button.
+Do not put commentary inside the block. Honor an explicit request for raw JSON instead.
+
+Escape quotation marks inside strings as `\"`, backslashes as `\\`, and paragraph
+breaks as `\n`. Do not use literal newlines within strings, smart quotes as JSON
+delimiters, comments, or trailing commas. Preserve quotations in family stories and
+source text rather than removing them to avoid escaping.
+
+When file-generation tools are available, serialize the recipe with a JSON library,
+parse the exact generated content to verify syntax, check it against the included
+schema, and provide a UTF-8 `.json` download as well. Never claim validation ran if
+it did not. The code block and file must contain the same recipe.
 
 The JSON must include all required schema fields.
 
@@ -459,7 +469,7 @@ Before final JSON, verify:
 - Family-history facts came from visible/user-supplied evidence.
 - Uncertainty is clearly preserved.
 - The JSON matches the included schema.
-- The output contains JSON only.
+- The code block contains JSON only, with escaped quotes and paragraph breaks.
 
 ## Optional modern adaptation
 

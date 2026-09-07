@@ -91,7 +91,7 @@ ALLOWED_IMAGES = {"png", "jpg", "jpeg", "webp"}
 ALLOWED_STORY_VIDEOS = {"mp4", "mov", "m4v", "webm"}
 MAX_STORY_IMAGE_BYTES = 15 * 1024 * 1024
 MAX_STORY_VIDEO_BYTES = 75 * 1024 * 1024
-APP_VERSION = "3.3.0-beta.4"
+APP_VERSION = "3.3.0-beta.4+json.1"
 SCHEMA_VERSION = 3
 
 def utcnow():
